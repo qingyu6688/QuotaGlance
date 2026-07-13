@@ -121,7 +121,7 @@ jobs:
       - name: 生成 SHA-256 清单
         working-directory: release-assets
         run: |
-          find . -maxdepth 1 -type f -print0 \
+          find . -maxdepth 1 -type f ! -name 'SHA256SUMS.txt' -print0 \
             | sort -z \
             | xargs -0 sha256sum \
             | sed 's#  \./#  #' > SHA256SUMS.txt
