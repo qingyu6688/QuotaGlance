@@ -4,11 +4,15 @@
 > 更新日期：2026-07-13  
 > 文档维护：maorongkang@gmail.com
 
-本文档记录 QuotaGlance 的重要变更。项目尚未发布，当前所有内容归入 `Unreleased`。
+本文档记录 QuotaGlance 的重要变更。`0.1.0` 是面向社区公开的未签名跨平台预览版；正式稳定版本目标仍为 `1.0.0`。
 
 版本号遵循语义化版本规则；第一个面向普通用户的正式版本目标为 `1.0.0`，内部开发版本将从 `0.1.0` 开始。
 
 ## [Unreleased]
+
+暂无。
+
+## [0.1.0] - 2026-07-13
 
 ### 新增
 
@@ -36,6 +40,9 @@
 - Windows 构建新增 Codex 桌面应用受管运行时发现，在不读取认证文件的前提下复用现有登录态启动只读 App Server。
 - 使用当前登录账号与 `codex-cli 0.144.0-alpha.4` 完成真实额度 POC，验证 ChatGPT Pro、多桶、主/次窗口、Credits 和 banked reset 结构。
 - 添加 MIT `LICENSE` 文件。
+- 公开 GitHub 仓库，补充贡献指南、行为准则、安全报告策略、Issue/PR 模板和 Dependabot 配置，允许社区参与代码、测试、设计、翻译和文档制作。
+- README 增加项目展示图、状态徽章、下载入口和 Windows、macOS、Linux 平台说明。
+- 增加标签触发的 GitHub Release 流程，分别构建 Windows x64、macOS Apple Silicon、macOS Intel、Linux x64 和 Linux ARM64 安装包；全部平台成功后生成 SHA-256 清单并公开预览版。
 
 ### 变更
 
@@ -54,6 +61,7 @@
 - 按最新浮球参考图将可见球体升级为 128px、原生透明窗口升级为 136px；球内严格采用“周额度、动态百分比、重置日期、状态”四层布局，增加横向水线、右侧气泡、多层球壳光效和低水位文字对比处理。
 - 极光、石墨、纸白三套冷色主题新增材质化发光边框：极光使用冰蓝内沿，石墨使用左上青色霓虹热点，纸白使用薄荷/蓝紫底边光；主数字与进度颜色解耦，纸白主题可使用深色主数字。
 - 浮球右键改用 Tauri 原生菜单，菜单只保留“设置”和“退出”；设置会展开卡片并打开设置面板，退出通过受控 IPC 结束应用。托盘的刷新、置顶和鼠标穿透恢复项保持不变。
+- macOS/Linux 预览版可从 `PATH` 和常见用户安装目录发现已安装的 `codex`；候选路径会规范化并检查普通文件与 Unix 可执行位，子进程仍使用固定 `app-server` 参数且不经过 Shell。
 
 ### 修复
 
@@ -66,12 +74,12 @@
 - Tauri WebView 启用严格 CSP 和最小 capability，不授予通用文件、Shell 或网络权限。
 - App Server 子进程使用参数化启动而非 Shell 拼接；调试路径要求绝对文件路径，单条 JSONL 消息限制为 1 MiB。
 - 正常数据路径不读取 `auth.json`，不向前端传递 Token、原始协议消息或子进程原始错误输出。
-- 发布模式在随包 sidecar 尚未完成前拒绝使用未经验证的外部可执行文件。
+- 公开预览版不捆绑或重新分发 Codex App Server，只复用用户已安装的 Codex；正式 `1.0.0` 仍要求固定版本、来源、哈希、许可和签名的受控运行时。
 
 ### 测试
 
 - `npm run check` 通过：ESLint、14 个 Vitest 用例、TypeScript 类型检查和 Vite 生产构建全部成功。
-- Rust 格式检查、Clippy `-D warnings` 和 44 个 Rust 测试通过，其中包含 9 个跨进程 App Server 契约测试。
+- Rust 格式检查、Clippy `-D warnings` 和 45 个 Rust 测试通过，其中包含 9 个跨进程 App Server 契约测试。
 - 安装并执行 `cargo-audit 0.22.2`：未发现漏洞，记录 17 个允许的维护或不健全警告供后续依赖升级跟踪。
 - 使用 npm 官方 registry 执行依赖审计，结果为 0 vulnerabilities。
 - Tauri `--debug --no-bundle` 构建成功，Windows 调试可执行文件完成 3 秒进程烟测。

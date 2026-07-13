@@ -7,7 +7,9 @@
 
 ## 1. 当前状态
 
-仓库当前已有 Tauri 2、React/TypeScript 工程、前后端锁文件、严格检查脚本和基础 CI，并已生成 Windows x64 未签名 Release 预览 EXE、NSIS 与 MSI。当前产物不包含可合法分发的 production sidecar，也未完成 Windows 11 安装/升级/卸载、更新器、macOS 构建、平台签名或公证验收，因此不能据此声称已有正式发布版。
+仓库当前已有 Tauri 2、React/TypeScript 工程、前后端锁文件、严格检查脚本和跨平台 CI。`0.1.0` 通过 Git 标签触发 GitHub Actions，在原生 Runner 上构建 Windows x64、macOS Apple Silicon、macOS Intel、Linux x64 和 Linux ARM64 安装包，并在全部任务成功后上传 SHA-256 清单、公开为 GitHub 预览版。当前产物不包含可合法再分发的 production sidecar，也未完成 Windows 11 安装/升级/卸载、更新器、平台签名、公证或全平台实机验收，因此不能据此声称已有正式稳定版。
+
+公开预览版由 `.github/workflows/release.yml` 管理：先创建草稿 Release，各平台分别上传原生安装包；矩阵全部成功后生成 `SHA256SUMS.txt` 并公开为 prerelease。任一平台失败时 Release 保持草稿，避免向用户展示不完整资产。发布入口仅接受版本标签或维护者手动触发，Pull Request 不持有写入 Release 的权限。
 
 正式发布必须由受控 CI 或专用构建机完成。本地开发包只用于调试，不得作为公开下载提供。
 

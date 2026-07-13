@@ -239,7 +239,7 @@ npm audit --audit-level=high --registry=https://registry.npmjs.org
 结果：
 
 - 前端：2 个测试文件、14 个测试全部通过。
-- Rust：44 个测试全部通过，其中包含 9 个假 App Server 跨进程契约测试。
+- Rust：45 个测试全部通过，其中包含 9 个假 App Server 跨进程契约测试。
 - TypeScript 与 Vite 生产构建通过。
 - npm 官方审计结果为 0 个已知漏洞。
 - 这些结果只证明当前单元测试和 Web 构建基线可用，不代表真实额度、托盘、透明窗、休眠恢复和签名安装包已经完成双平台验收。

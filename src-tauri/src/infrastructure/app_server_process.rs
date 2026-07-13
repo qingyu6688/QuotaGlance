@@ -1,9 +1,17 @@
-use std::{ffi::OsString, io::ErrorKind, path::PathBuf, process::Stdio, time::Duration};
+use std::{
+    env,
+    ffi::{OsStr, OsString},
+    fs,
+    io::ErrorKind,
+    path::{Path, PathBuf},
+    process::Stdio,
+    time::Duration,
+};
 
-#[cfg(any(debug_assertions, target_os = "windows"))]
-use std::env;
+#[cfg(unix)]
+use std::os::unix::fs::PermissionsExt;
 #[cfg(target_os = "windows")]
-use std::{fs, path::Path, time::SystemTime};
+use std::time::SystemTime;
 
 use thiserror::Error;
 use tokio::{
@@ -216,6 +224,27 @@ pub(super) fn locate_candidate() -> Result<Candidate, ProbeError> {
         });
     }
 
+    if let Some(program) = locate_codex_from_path() {
+        return Ok(Candidate {
+            program,
+            source: if cfg!(debug_assertions) {
+                AppServerSource::DevelopmentPath
+            } else {
+                AppServerSource::External
+            },
+            arguments: Vec::new(),
+        });
+    }
+
+    #[cfg(unix)]
+    if let Some(program) = locate_common_unix_codex_runtime() {
+        return Ok(Candidate {
+            program,
+            source: AppServerSource::External,
+            arguments: Vec::new(),
+        });
+    }
+
     #[cfg(debug_assertions)]
     {
         Ok(Candidate {
@@ -229,6 +258,56 @@ pub(super) fn locate_candidate() -> Result<Candidate, ProbeError> {
     {
         Err(ProbeError::NotFound)
     }
+}
+
+fn locate_codex_from_path() -> Option<PathBuf> {
+    let search_path = env::var_os("PATH")?;
+    find_codex_in_search_path(&search_path)
+}
+
+fn find_codex_in_search_path(search_path: &OsStr) -> Option<PathBuf> {
+    env::split_paths(search_path)
+        .find_map(|directory| canonical_executable(directory.join(codex_executable_name())))
+}
+
+#[cfg(target_os = "windows")]
+const fn codex_executable_name() -> &'static str {
+    "codex.exe"
+}
+
+#[cfg(not(target_os = "windows"))]
+const fn codex_executable_name() -> &'static str {
+    "codex"
+}
+
+fn canonical_executable(candidate: PathBuf) -> Option<PathBuf> {
+    let canonical = fs::canonicalize(candidate).ok()?;
+    if !canonical.is_file() {
+        return None;
+    }
+
+    #[cfg(unix)]
+    if canonical.metadata().ok()?.permissions().mode() & 0o111 == 0 {
+        return None;
+    }
+
+    Some(canonical)
+}
+
+#[cfg(unix)]
+fn locate_common_unix_codex_runtime() -> Option<PathBuf> {
+    let mut candidates = vec![
+        PathBuf::from("/usr/local/bin/codex"),
+        PathBuf::from("/opt/homebrew/bin/codex"),
+    ];
+
+    if let Some(home) = env::var_os("HOME") {
+        let home = PathBuf::from(home);
+        candidates.push(home.join(".local").join("bin").join("codex"));
+        candidates.push(home.join(".npm-global").join("bin").join("codex"));
+    }
+
+    candidates.into_iter().find_map(canonical_executable)
 }
 
 #[cfg(target_os = "windows")]
@@ -448,18 +527,20 @@ pub async fn run_app_server_probe_for_test(
 
 #[cfg(test)]
 mod tests {
-    #[cfg(target_os = "windows")]
     use std::{
         fs,
         sync::atomic::{AtomicU64, Ordering},
         time::{SystemTime, UNIX_EPOCH},
     };
 
+    #[cfg(unix)]
+    use std::os::unix::fs::PermissionsExt;
+
     use tokio::io::{duplex, AsyncWriteExt, BufReader};
 
     #[cfg(target_os = "windows")]
     use super::find_latest_managed_codex;
-    use super::{read_limited_line, ProbeError};
+    use super::{codex_executable_name, find_codex_in_search_path, read_limited_line, ProbeError};
     use crate::providers::app_server_protocol::MAX_MESSAGE_BYTES;
 
     #[tokio::test]
@@ -493,6 +574,46 @@ mod tests {
         let _ = task.await;
 
         assert!(matches!(error, Some(ProbeError::Protocol(_))));
+    }
+
+    #[test]
+    fn path_locator_prefers_first_executable_candidate() {
+        static NEXT_DIRECTORY: AtomicU64 = AtomicU64::new(0);
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|duration| duration.as_nanos())
+            .unwrap_or_default();
+        let root = std::env::temp_dir().join(format!(
+            "quota-glance-codex-path-{nonce}-{}",
+            NEXT_DIRECTORY.fetch_add(1, Ordering::Relaxed)
+        ));
+        let first_directory = root.join("first");
+        let second_directory = root.join("second");
+        assert!(fs::create_dir_all(&first_directory).is_ok());
+        assert!(fs::create_dir_all(&second_directory).is_ok());
+
+        let expected = first_directory.join(codex_executable_name());
+        let fallback = second_directory.join(codex_executable_name());
+        assert!(fs::write(&expected, b"first").is_ok());
+        assert!(fs::write(&fallback, b"second").is_ok());
+
+        #[cfg(unix)]
+        for candidate in [&expected, &fallback] {
+            if let Ok(metadata) = fs::metadata(candidate) {
+                let mut permissions = metadata.permissions();
+                permissions.set_mode(0o755);
+                assert!(fs::set_permissions(candidate, permissions).is_ok());
+            }
+        }
+
+        let search_path = std::env::join_paths([&first_directory, &second_directory]);
+        assert!(search_path.is_ok());
+        let located = search_path
+            .ok()
+            .and_then(|path| find_codex_in_search_path(&path));
+
+        assert_eq!(located, fs::canonicalize(&expected).ok());
+        let _ = fs::remove_dir_all(root);
     }
 
     #[cfg(target_os = "windows")]

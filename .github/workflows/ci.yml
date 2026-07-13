@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: 获取代码
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: 配置 Node.js
         uses: actions/setup-node@v6
         with:
@@ -32,11 +32,29 @@ jobs:
         run: npm audit --registry=https://registry.npmjs.org --audit-level=high
 
   desktop:
-    name: Windows 桌面检查
-    runs-on: windows-latest
+    name: ${{ matrix.name }} 桌面检查
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows x64
+            platform: windows-latest
+            linux: false
+          - name: macOS
+            platform: macos-latest
+            linux: false
+          - name: Linux x64
+            platform: ubuntu-22.04
+            linux: true
+    runs-on: ${{ matrix.platform }}
     steps:
       - name: 获取代码
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
+      - name: 安装 Linux 构建依赖
+        if: matrix.linux
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf xdg-utils
       - name: 配置 Node.js
         uses: actions/setup-node@v6
         with:

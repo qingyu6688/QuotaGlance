@@ -1,0 +1,135 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: ${{ matrix.name }}
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows x64
+            platform: windows-latest
+            args: "--bundles nsis,msi"
+            linux: false
+          - name: macOS Apple Silicon
+            platform: macos-latest
+            args: "--target aarch64-apple-darwin --bundles dmg"
+            rust_targets: aarch64-apple-darwin
+            linux: false
+          - name: macOS Intel
+            platform: macos-latest
+            args: "--target x86_64-apple-darwin --bundles dmg"
+            rust_targets: x86_64-apple-darwin
+            linux: false
+          - name: Linux x64
+            platform: ubuntu-22.04
+            args: "--bundles appimage,deb"
+            linux: true
+          - name: Linux ARM64
+            platform: ubuntu-22.04-arm
+            args: "--bundles appimage,deb"
+            linux: true
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - name: 获取代码
+        uses: actions/checkout@v7
+
+      - name: 安装 Linux 构建依赖
+        if: matrix.linux
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf xdg-utils
+
+      - name: 配置 Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: 配置 Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust_targets }}
+
+      - name: 缓存 Rust 构建目录
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+
+      - name: 安装前端依赖
+        run: npm ci
+
+      - name: 构建并上传跨平台安装包
+        uses: tauri-apps/tauri-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          APPLE_SIGNING_IDENTITY: ${{ startsWith(matrix.platform, 'macos') && '-' || '' }}
+        with:
+          tagName: v__VERSION__
+          releaseName: "QuotaGlance v__VERSION__ 跨平台预览版"
+          releaseBody: |
+            QuotaGlance 首个开源跨平台预览版。
+
+            下载对应平台的安装包：
+            - Windows x64：NSIS `.exe` 或 MSI `.msi`
+            - macOS Apple Silicon / Intel：`.dmg`
+            - Linux x64 / ARM64：`.AppImage` 或 `.deb`
+
+            Release 同时提供 `SHA256SUMS.txt`，可用于核对下载文件完整性。
+
+            重要说明：本版本未附带 Codex App Server sidecar。运行前需单独安装并登录 Codex；Windows 会优先复用 Codex 桌面应用受管运行时，macOS/Linux 会查找 PATH 和常见用户安装目录中的 `codex`。Windows 安装包未进行 Authenticode 签名，macOS 仅使用 ad-hoc 签名且未公证，系统可能显示安全提醒。
+          releaseDraft: true
+          prerelease: true
+          generateReleaseNotes: true
+          uploadUpdaterJson: false
+          uploadUpdaterSignatures: false
+          releaseAssetNamePattern: "[name]_[version]_[platform]_[arch][setup][ext]"
+          retryAttempts: 2
+          args: ${{ matrix.args }}
+
+  publish-checksums:
+    name: 生成校验和并公开预览版
+    needs: publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: 获取代码
+        uses: actions/checkout@v7
+
+      - name: 解析发布标签
+        run: echo "TAG_NAME=v$(jq -r '.version' src-tauri/tauri.conf.json)" >> "$GITHUB_ENV"
+
+      - name: 下载 Release 资产
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release download "$TAG_NAME" --repo "$GITHUB_REPOSITORY" --dir release-assets
+
+      - name: 生成 SHA-256 清单
+        working-directory: release-assets
+        run: |
+          find . -maxdepth 1 -type f -print0 \
+            | sort -z \
+            | xargs -0 sha256sum \
+            | sed 's#  \./#  #' > SHA256SUMS.txt
+          test -s SHA256SUMS.txt
+
+      - name: 上传校验清单并公开 Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "$TAG_NAME" release-assets/SHA256SUMS.txt --repo "$GITHUB_REPOSITORY" --clobber
+          gh release edit "$TAG_NAME" --repo "$GITHUB_REPOSITORY" --draft=false --prerelease
