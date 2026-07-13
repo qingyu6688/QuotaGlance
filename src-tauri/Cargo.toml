@@ -1,0 +1,39 @@
+[package]
+name = "quota-glance"
+version = "0.1.0"
+description = "本地优先的 Codex 额度悬浮助手"
+authors = ["QuotaGlance contributors"]
+license = "MIT"
+edition = "2021"
+rust-version = "1.85"
+default-run = "quota-glance"
+
+# 其他清单字段说明：https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+# `_lib` 后缀用于保证库名称唯一，避免与二进制目标重名。
+# 该问题主要出现在 Windows，参见 https://github.com/rust-lang/cargo/issues/8519
+name = "quota_glance_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[features]
+default = []
+test-support = []
+
+[[bin]]
+name = "fake-app-server"
+path = "tests/fixtures/fake_app_server.rs"
+required-features = ["test-support"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tauri = { version = "2", features = ["tray-icon"] }
+tauri-plugin-single-instance = "2"
+tauri-plugin-window-state = "2"
+thiserror = "2"
+time = { version = "0.3", features = ["formatting"] }
+tokio = { version = "1", features = ["io-util", "macros", "process", "rt-multi-thread", "sync", "time"] }

@@ -1,0 +1,525 @@
+use std::{ffi::OsString, io::ErrorKind, path::PathBuf, process::Stdio, time::Duration};
+
+#[cfg(any(debug_assertions, target_os = "windows"))]
+use std::env;
+#[cfg(target_os = "windows")]
+use std::{fs, path::Path, time::SystemTime};
+
+use thiserror::Error;
+use tokio::{
+    io::{AsyncBufRead, AsyncBufReadExt},
+    process::{Child, Command},
+    time::timeout,
+};
+
+#[cfg(feature = "test-support")]
+use serde_json::Value;
+#[cfg(feature = "test-support")]
+use tokio::{
+    io::{AsyncReadExt, AsyncWriteExt, BufReader},
+    process::{ChildStdin, ChildStdout},
+};
+
+use crate::{
+    application::AppServerSource,
+    domain::{AuthSummary, ErrorCode, QuotaError},
+    providers::{
+        app_server_protocol::{ProtocolError, MAX_MESSAGE_BYTES},
+        ProviderError, ProviderQuotaData,
+    },
+};
+
+#[cfg(feature = "test-support")]
+use crate::{
+    domain::AuthUiState,
+    providers::{
+        app_server_protocol::{
+            build_initialized_notification, build_method_not_found_response, build_request,
+            encode_jsonl, parse_jsonl_line, ClientRequest, InboundMessage,
+        },
+        parse_account_read_result, parse_rate_limits_result,
+    },
+};
+
+const REQUEST_TIMEOUT: Duration = Duration::from_secs(10);
+const SHUTDOWN_GRACE: Duration = Duration::from_millis(500);
+#[cfg(target_os = "windows")]
+const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+pub(super) const STDERR_DRAIN_LIMIT: usize = 64 * 1024;
+
+#[derive(Debug)]
+pub struct ProbeOutcome {
+    pub source: AppServerSource,
+    pub auth: AuthSummary,
+    pub quota: Option<ProviderQuotaData>,
+}
+
+#[derive(Debug, Error)]
+pub enum ProbeError {
+    #[error("未找到可执行的 Codex App Server")]
+    NotFound,
+    #[error("系统拒绝执行 Codex App Server")]
+    ExecutionDenied,
+    #[error("Codex App Server 启动失败")]
+    SpawnFailed,
+    #[error("Codex App Server 握手或请求超时")]
+    RequestTimeout,
+    #[error("Codex App Server 在请求完成前退出")]
+    Exited,
+    #[error("Codex App Server 返回了受控远端错误")]
+    Remote,
+    #[error("Codex App Server 会话中的待处理请求已达到上限")]
+    SourceBusy,
+    #[error("Codex App Server 会话请求 ID 已耗尽")]
+    RequestIdExhausted,
+    #[error(transparent)]
+    Protocol(#[from] ProtocolError),
+    #[error(transparent)]
+    Provider(#[from] ProviderError),
+}
+
+impl ProbeError {
+    pub fn to_quota_error(&self) -> QuotaError {
+        match self {
+            Self::NotFound => QuotaError::new(
+                ErrorCode::AppServerNotFound,
+                "error.appServerNotFound",
+                true,
+                None,
+            ),
+            Self::ExecutionDenied => QuotaError::new(
+                ErrorCode::AppServerExecutionDenied,
+                "error.appServerExecutionDenied",
+                true,
+                None,
+            ),
+            Self::SpawnFailed | Self::Exited => QuotaError::new(
+                ErrorCode::AppServerExited,
+                "error.appServerExited",
+                true,
+                None,
+            ),
+            Self::RequestTimeout => QuotaError::new(
+                ErrorCode::ProtocolRequestTimeout,
+                "error.protocolRequestTimeout",
+                true,
+                None,
+            ),
+            Self::Remote => QuotaError::new(
+                ErrorCode::ServiceUnavailable,
+                "error.serviceUnavailable",
+                true,
+                None,
+            ),
+            Self::SourceBusy => {
+                QuotaError::new(ErrorCode::SourceBusy, "error.sourceBusy", true, None)
+            }
+            Self::RequestIdExhausted => QuotaError::new(
+                ErrorCode::ServiceUnavailable,
+                "error.requestIdExhausted",
+                false,
+                None,
+            ),
+            Self::Protocol(error) => error.to_quota_error(),
+            Self::Provider(error) => error.to_quota_error(),
+        }
+    }
+}
+
+pub(super) struct Candidate {
+    pub program: PathBuf,
+    pub source: AppServerSource,
+    pub arguments: Vec<OsString>,
+}
+
+#[derive(Clone, Copy)]
+pub(super) struct ProbeTimeouts {
+    pub request: Duration,
+    pub shutdown_grace: Duration,
+}
+
+impl Default for ProbeTimeouts {
+    fn default() -> Self {
+        Self {
+            request: REQUEST_TIMEOUT,
+            shutdown_grace: SHUTDOWN_GRACE,
+        }
+    }
+}
+
+#[cfg(feature = "test-support")]
+async fn run_app_server_probe_with_candidate(
+    candidate: Candidate,
+    timeouts: ProbeTimeouts,
+) -> Result<ProbeOutcome, ProbeError> {
+    let mut child = spawn_child(&candidate)?;
+
+    if let Some(mut stderr) = child.stderr.take() {
+        tokio::spawn(async move {
+            let mut buffer = [0_u8; 1024];
+            let mut drained = 0_usize;
+            while drained < STDERR_DRAIN_LIMIT {
+                let remaining = STDERR_DRAIN_LIMIT - drained;
+                let read_size = remaining.min(buffer.len());
+                match stderr.read(&mut buffer[..read_size]).await {
+                    Ok(0) | Err(_) => break,
+                    Ok(read) => drained += read,
+                }
+            }
+        });
+    }
+
+    let mut stdin = child.stdin.take().ok_or(ProbeError::SpawnFailed)?;
+    let stdout = child.stdout.take().ok_or(ProbeError::SpawnFailed)?;
+    let mut reader = BufReader::new(stdout);
+
+    let result = match timeout(
+        timeouts.request.saturating_mul(4),
+        run_protocol_sequence(&mut stdin, &mut reader, timeouts.request),
+    )
+    .await
+    {
+        Ok(result) => result,
+        Err(_) => Err(ProbeError::RequestTimeout),
+    };
+
+    drop(stdin);
+    stop_owned_child(&mut child, timeouts.shutdown_grace).await;
+
+    result.map(|(auth, quota)| ProbeOutcome {
+        source: candidate.source,
+        auth,
+        quota,
+    })
+}
+
+pub(super) fn locate_candidate() -> Result<Candidate, ProbeError> {
+    #[cfg(debug_assertions)]
+    if let Some(configured) = env::var_os("QUOTAGLANCE_CODEX_PATH") {
+        let program = PathBuf::from(configured);
+        if !program.is_absolute() || !program.is_file() {
+            return Err(ProbeError::NotFound);
+        }
+        return Ok(Candidate {
+            program,
+            source: AppServerSource::External,
+            arguments: Vec::new(),
+        });
+    }
+
+    #[cfg(target_os = "windows")]
+    if let Some(program) = locate_managed_codex_desktop_runtime() {
+        return Ok(Candidate {
+            program,
+            source: AppServerSource::External,
+            arguments: Vec::new(),
+        });
+    }
+
+    #[cfg(debug_assertions)]
+    {
+        Ok(Candidate {
+            program: PathBuf::from("codex"),
+            source: AppServerSource::DevelopmentPath,
+            arguments: Vec::new(),
+        })
+    }
+
+    #[cfg(not(debug_assertions))]
+    {
+        Err(ProbeError::NotFound)
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn locate_managed_codex_desktop_runtime() -> Option<PathBuf> {
+    let local_app_data = env::var_os("LOCALAPPDATA")?;
+    let managed_bin = PathBuf::from(local_app_data)
+        .join("OpenAI")
+        .join("Codex")
+        .join("bin");
+    find_latest_managed_codex(&managed_bin)
+}
+
+#[cfg(target_os = "windows")]
+fn find_latest_managed_codex(managed_bin: &Path) -> Option<PathBuf> {
+    let canonical_root = fs::canonicalize(managed_bin).ok()?;
+    fs::read_dir(&canonical_root)
+        .ok()?
+        .filter_map(Result::ok)
+        .filter(|entry| entry.file_type().is_ok_and(|file_type| file_type.is_dir()))
+        .filter_map(|entry| {
+            let candidate = entry.path().join("codex.exe");
+            let canonical_candidate = fs::canonicalize(candidate).ok()?;
+            if !canonical_candidate.starts_with(&canonical_root) || !canonical_candidate.is_file() {
+                return None;
+            }
+            let modified = canonical_candidate
+                .metadata()
+                .and_then(|metadata| metadata.modified())
+                .unwrap_or(SystemTime::UNIX_EPOCH);
+            Some((modified, canonical_candidate))
+        })
+        .max_by_key(|(modified, _)| *modified)
+        .map(|(_, candidate)| candidate)
+}
+
+pub(super) fn spawn_child(candidate: &Candidate) -> Result<Child, ProbeError> {
+    let mut command = Command::new(&candidate.program);
+    command
+        .arg("app-server")
+        .args(&candidate.arguments)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .kill_on_drop(true);
+
+    // Codex CLI 是控制台程序；GUI 应用启动它时禁止 Windows 创建额外的 CMD 窗口。
+    #[cfg(target_os = "windows")]
+    command.creation_flags(CREATE_NO_WINDOW);
+
+    command.spawn().map_err(|error| match error.kind() {
+        ErrorKind::NotFound => ProbeError::NotFound,
+        ErrorKind::PermissionDenied => ProbeError::ExecutionDenied,
+        _ => ProbeError::SpawnFailed,
+    })
+}
+
+#[cfg(feature = "test-support")]
+async fn run_protocol_sequence(
+    stdin: &mut ChildStdin,
+    reader: &mut BufReader<ChildStdout>,
+    request_timeout: Duration,
+) -> Result<(AuthSummary, Option<ProviderQuotaData>), ProbeError> {
+    request(
+        stdin,
+        reader,
+        ClientRequest::Initialize {
+            application_version: env!("CARGO_PKG_VERSION"),
+        },
+        1,
+        request_timeout,
+    )
+    .await?;
+
+    write_value(stdin, &build_initialized_notification()).await?;
+
+    let account_value = request(
+        stdin,
+        reader,
+        ClientRequest::AccountRead,
+        2,
+        request_timeout,
+    )
+    .await?;
+    let auth = parse_account_read_result(&account_value)?;
+
+    let quota = if auth.state == AuthUiState::Authenticated {
+        let quota_value = request(
+            stdin,
+            reader,
+            ClientRequest::RateLimitsRead,
+            3,
+            request_timeout,
+        )
+        .await?;
+        Some(parse_rate_limits_result(&quota_value)?)
+    } else {
+        None
+    };
+
+    Ok((auth, quota))
+}
+
+#[cfg(feature = "test-support")]
+async fn request(
+    stdin: &mut ChildStdin,
+    reader: &mut BufReader<ChildStdout>,
+    request: ClientRequest<'_>,
+    id: u64,
+    request_timeout: Duration,
+) -> Result<Value, ProbeError> {
+    let value = build_request(request, id)?;
+    write_value(stdin, &value).await?;
+
+    timeout(request_timeout, read_response(stdin, reader, id))
+        .await
+        .map_err(|_| ProbeError::RequestTimeout)?
+}
+
+#[cfg(feature = "test-support")]
+async fn write_value(stdin: &mut ChildStdin, value: &Value) -> Result<(), ProbeError> {
+    let bytes = encode_jsonl(value)?;
+    stdin
+        .write_all(&bytes)
+        .await
+        .map_err(|_| ProbeError::Exited)?;
+    stdin.flush().await.map_err(|_| ProbeError::Exited)
+}
+
+#[cfg(feature = "test-support")]
+async fn read_response(
+    stdin: &mut ChildStdin,
+    reader: &mut BufReader<ChildStdout>,
+    expected_id: u64,
+) -> Result<Value, ProbeError> {
+    loop {
+        let line = read_limited_line(reader).await?;
+        let Some(message) = parse_jsonl_line(&line)? else {
+            continue;
+        };
+
+        match message {
+            InboundMessage::Response { id, outcome } if id == expected_id => {
+                return outcome.map_err(|_| ProbeError::Remote);
+            }
+            InboundMessage::UnsupportedServerRequest { id } => {
+                write_value(stdin, &build_method_not_found_response(id)).await?;
+            }
+            InboundMessage::Notification(_) | InboundMessage::Response { .. } => {}
+        }
+    }
+}
+
+pub(super) async fn read_limited_line<R>(reader: &mut R) -> Result<Vec<u8>, ProbeError>
+where
+    R: AsyncBufRead + Unpin,
+{
+    let mut line = Vec::new();
+
+    loop {
+        let available = reader.fill_buf().await.map_err(|_| ProbeError::Exited)?;
+        if available.is_empty() {
+            return Err(ProbeError::Exited);
+        }
+
+        let newline = available.iter().position(|byte| *byte == b'\n');
+        let take = newline.map_or(available.len(), |index| index + 1);
+        let maximum_buffered = if newline.is_some() {
+            MAX_MESSAGE_BYTES + 2
+        } else {
+            MAX_MESSAGE_BYTES
+        };
+        if line.len().saturating_add(take) > maximum_buffered {
+            return Err(ProbeError::Protocol(
+                crate::providers::app_server_protocol::message_too_large_error(),
+            ));
+        }
+
+        line.extend_from_slice(&available[..take]);
+        reader.consume(take);
+
+        if newline.is_some() {
+            return Ok(line);
+        }
+    }
+}
+
+pub(super) async fn stop_owned_child(child: &mut Child, shutdown_grace: Duration) {
+    match timeout(shutdown_grace, child.wait()).await {
+        Ok(_) => {}
+        Err(_) => {
+            let _ = child.start_kill();
+            let _ = timeout(shutdown_grace, child.wait()).await;
+        }
+    }
+}
+
+/// 使用受控假进程执行跨进程契约测试，不会进入默认或发布构建。
+#[cfg(feature = "test-support")]
+#[doc(hidden)]
+pub async fn run_app_server_probe_for_test(
+    program: PathBuf,
+    scenario: &str,
+    request_timeout: Duration,
+) -> Result<ProbeOutcome, ProbeError> {
+    let candidate = Candidate {
+        program,
+        source: AppServerSource::External,
+        arguments: vec![OsString::from("--scenario"), OsString::from(scenario)],
+    };
+    let timeouts = ProbeTimeouts {
+        request: request_timeout,
+        shutdown_grace: Duration::from_millis(100),
+    };
+
+    run_app_server_probe_with_candidate(candidate, timeouts).await
+}
+
+#[cfg(test)]
+mod tests {
+    #[cfg(target_os = "windows")]
+    use std::{
+        fs,
+        sync::atomic::{AtomicU64, Ordering},
+        time::{SystemTime, UNIX_EPOCH},
+    };
+
+    use tokio::io::{duplex, AsyncWriteExt, BufReader};
+
+    #[cfg(target_os = "windows")]
+    use super::find_latest_managed_codex;
+    use super::{read_limited_line, ProbeError};
+    use crate::providers::app_server_protocol::MAX_MESSAGE_BYTES;
+
+    #[tokio::test]
+    async fn limited_reader_accepts_one_complete_json_line() {
+        let (mut writer, reader) = duplex(128);
+        let task = tokio::spawn(async move {
+            let _ = writer.write_all(b"{\"id\":1,\"result\":{}}\n").await;
+        });
+        let mut reader = BufReader::new(reader);
+
+        let line = read_limited_line(&mut reader).await;
+        let _ = task.await;
+
+        assert!(matches!(
+            line.as_deref(),
+            Ok(bytes) if bytes == b"{\"id\":1,\"result\":{}}\n"
+        ));
+    }
+
+    #[tokio::test]
+    async fn limited_reader_rejects_oversized_message_before_newline() {
+        let capacity = MAX_MESSAGE_BYTES + 16;
+        let (mut writer, reader) = duplex(capacity);
+        let task = tokio::spawn(async move {
+            let payload = vec![b'a'; MAX_MESSAGE_BYTES + 1];
+            let _ = writer.write_all(&payload).await;
+        });
+        let mut reader = BufReader::new(reader);
+
+        let error = read_limited_line(&mut reader).await.err();
+        let _ = task.await;
+
+        assert!(matches!(error, Some(ProbeError::Protocol(_))));
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn managed_codex_locator_only_accepts_one_level_runtime_binary() {
+        static NEXT_DIRECTORY: AtomicU64 = AtomicU64::new(0);
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|duration| duration.as_nanos())
+            .unwrap_or_default();
+        let root = std::env::temp_dir().join(format!(
+            "quota-glance-codex-bin-{nonce}-{}",
+            NEXT_DIRECTORY.fetch_add(1, Ordering::Relaxed)
+        ));
+        let managed_directory = root.join("managed-id");
+        assert!(fs::create_dir_all(&managed_directory).is_ok());
+        assert!(fs::write(root.join("codex.exe"), b"ignored").is_ok());
+        let expected = managed_directory.join("codex.exe");
+        assert!(fs::write(&expected, b"managed").is_ok());
+
+        let located = find_latest_managed_codex(&root);
+
+        assert_eq!(
+            located,
+            fs::canonicalize(&expected).ok(),
+            "只接受受控 bin 目录下一层的 codex.exe"
+        );
+        let _ = fs::remove_dir_all(root);
+    }
+}

@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    name: 前端检查
+    runs-on: ubuntu-latest
+    steps:
+      - name: 获取代码
+        uses: actions/checkout@v6
+      - name: 配置 Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+      - name: 安装依赖
+        run: npm ci
+      - name: 运行 lint、测试与构建
+        run: npm run check
+      - name: 审计 npm 依赖
+        run: npm audit --registry=https://registry.npmjs.org --audit-level=high
+
+  desktop:
+    name: Windows 桌面检查
+    runs-on: windows-latest
+    steps:
+      - name: 获取代码
+        uses: actions/checkout@v6
+      - name: 配置 Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+      - name: 配置 Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - name: 安装前端依赖
+        run: npm ci
+      - name: 检查 Rust 格式
+        run: cargo fmt --manifest-path src-tauri/Cargo.toml --all -- --check
+      - name: 运行 Rust 静态检查
+        run: cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features -- -D warnings
+      - name: 运行 Rust 测试
+        run: cargo test --manifest-path src-tauri/Cargo.toml --all-targets --all-features
+      - name: 构建 Tauri 调试程序
+        run: npm run tauri -- build --debug --no-bundle
