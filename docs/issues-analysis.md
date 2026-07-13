@@ -1,7 +1,7 @@
 # QuotaGlance 未完成问题分析与解决方案
 
 > 分析日期：2026-07-13  
-> 适用版本：`0.1.0` 开发基线  
+> 适用版本：`0.1.x` 开发与 prerelease 基线
 > 文档维护：maorongkang@gmail.com
 
 ## 1. 分析结论

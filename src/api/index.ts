@@ -1,4 +1,5 @@
 import type { Menu } from "@tauri-apps/api/menu";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import type { QuotaGlanceApi } from "./contract";
 import { BrowserMockClient } from "./mock-client";
 import { tauriClient } from "./tauri-client";
@@ -59,6 +60,19 @@ export async function showOrbContextMenu(actions: OrbContextMenuActions): Promis
   try {
     const menu = await getOrbContextMenu();
     await menu.popup();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function startWidgetDragging(): Promise<boolean> {
+  if (!isTauriRuntime) {
+    return false;
+  }
+
+  try {
+    await getCurrentWindow().startDragging();
     return true;
   } catch {
     return false;

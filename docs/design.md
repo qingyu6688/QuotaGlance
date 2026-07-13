@@ -1,6 +1,6 @@
 # QuotaGlance 概要设计说明书
 
-> 文档状态：目标设计基线；`0.1.0` 已进入实现阶段  
+> 文档状态：目标设计基线；`0.1.x` 已进入实现阶段
 > 目标版本：`1.0.0`  
 > 最后更新：2026-07-13  
 > 维护联系：`maorongkang@gmail.com`
@@ -9,9 +9,9 @@
 
 本文定义 QuotaGlance 1.0.0 的总体架构、模块边界、关键数据流和主要技术决策，作为当前实现、后续迭代和测试的共同基线。
 
-当前工作区已经建立 Tauri 2、Rust 与 React/TypeScript 工程。本文描述的是 1.0.0 目标架构；除下节明确列出的 0.1.0 能力外，其余模块、完整语义和部署结构仍按目标设计管理。
+当前工作区已经建立 Tauri 2、Rust 与 React/TypeScript 工程。本文描述的是 1.0.0 目标架构；除下节明确列出的 0.1.x 能力外，其余模块、完整语义和部署结构仍按目标设计管理。
 
-### 1.1 0.1.0 当前实现边界
+### 1.1 0.1.x 当前实现边界
 
 - 已实现动态 Rust 领域模型、严格 JSONL 协议校验、只读常驻 App Server 会话、pending request map、基础刷新状态、9 个 IPC、窗口/托盘偏好以及 React UI。
 - 已实现的 IPC 为 `get_quota_snapshot`、`refresh_quota`、`get_app_server_status`、`get_preferences`、`set_theme`、`set_widget_mode`、`set_always_on_top`、`set_click_through`、`quit_app`。

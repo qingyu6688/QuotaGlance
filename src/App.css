@@ -1115,7 +1115,9 @@ body:has(.quota-app[data-runtime="tauri"]) #root {
     0 0 4px var(--orb-shell-glow),
     0 5px 9px var(--orb-shadow);
   isolation: isolate;
-  cursor: pointer;
+  cursor: grab;
+  touch-action: none;
+  -webkit-user-select: none;
   user-select: none;
   transition:
     filter 150ms ease,
@@ -1163,6 +1165,7 @@ body:has(.quota-app[data-runtime="tauri"]) #root {
 }
 
 .quota-orb:active {
+  cursor: grabbing;
   transform: scale(0.98);
 }
 

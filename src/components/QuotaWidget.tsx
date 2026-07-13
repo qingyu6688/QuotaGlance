@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { isTauriRuntime, showOrbContextMenu } from "../api";
+import { isTauriRuntime, showOrbContextMenu, startWidgetDragging } from "../api";
 import { useQuotaGlance } from "../hooks/useQuotaGlance";
 import { QuotaCard } from "./QuotaCard";
 import { QuotaOrb } from "./QuotaOrb";
@@ -58,6 +58,7 @@ export function QuotaWidget() {
           modeBusy={controller.pendingAction === "mode"}
           onExpand={() => void controller.setMode("card")}
           onOpenContextMenu={openOrbMenu}
+          onStartDragging={() => void startWidgetDragging()}
           preferences={preferences}
           snapshot={controller.snapshot}
         />

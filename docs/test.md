@@ -1,13 +1,13 @@
 # QuotaGlance 测试计划与测试报告
 
 > 文档状态：测试计划与开发基线报告  
-> 核对日期：2026-07-13  
-> 当前阶段：`0.1.0` 开发实现；自动化检查与 Windows 调试烟测已通过，尚不满足发布条件  
+> 核对日期：2026-07-14
+> 当前阶段：`0.1.1` 跨平台 prerelease；自动化检查与 Windows Release 烟测已通过，尚不满足正式稳定版条件
 > 文档维护：maorongkang@gmail.com
 
 ## 1. 当前测试状态
 
-QuotaGlance 已形成 Tauri 2、React、TypeScript 与 Rust 的可运行开发基线。2026-07-13 已复核前端检查、Rust 检查、Windows 调试构建、浏览器内 UI 验证、偏好恢复测试和假 App Server 跨进程协议契约，具体结果见第 14 节。
+QuotaGlance 已形成 Tauri 2、React、TypeScript 与 Rust 的可运行开发基线。2026-07-14 已复核前端检查、Rust 检查、Windows 调试与 Release 构建、原生浮球拖拽、浏览器 UI、偏好恢复和假 App Server 跨进程协议契约，具体结果见第 14 节。
 
 当前结果只证明本工作区开发基线可构建、核心解析与组件测试通过，不等同于正式候选版本验收：
 
@@ -265,12 +265,12 @@ npm run tauri -- build --debug --no-bundle
 
 ## 14. 当前报告
 
-### 14.1 测试报告：0.1.0 开发基线
+### 14.1 测试报告：0.1.1 跨平台预览基线
 
-- 测试日期：2026-07-13
-- 基线性质：`0.1.0` 开源跨平台预览版；不等同于正式稳定版本验收
+- 测试日期：2026-07-14
+- 基线性质：`0.1.1` 开源跨平台 prerelease；不等同于正式稳定版本验收
 - 调试产物：`src-tauri/target/debug/quota-glance.exe`
-- Release 预览：`release/QuotaGlance-0.1.0-windows-x64-preview/`，包含未签名 EXE、NSIS、MSI 和 SHA-256 清单
+- Release 预览：`release/QuotaGlance-0.1.1-windows-x64-preview/`，包含未签名 EXE、NSIS、MSI 和 SHA-256 清单
 - 测试环境：Windows 本机开发环境；浏览器内 UI 验证使用 1200 × 800 与 400 × 720 视口
 - 正式候选产物及 SHA-256：无
 - App Server / sidecar 版本及 SHA-256：未验证
@@ -279,19 +279,20 @@ npm run tauri -- build --debug --no-bundle
 
 | 检查 | 结果 | 证据摘要 |
 |---|---|---|
-| `npm run check` | 通过 | ESLint 通过；14 个 Vitest 用例通过；TypeScript 类型检查通过；Vite 生产构建通过 |
+| `npm run check` | 通过 | ESLint 通过；15 个 Vitest 用例通过；TypeScript 类型检查通过；Vite 生产构建通过 |
 | `cargo fmt --all -- --check` | 通过 | Rust 格式检查无差异 |
 | `cargo clippy --all-targets --all-features -- -D warnings` | 通过 | 无 Clippy warning |
 | `cargo test --all-targets --all-features` | 通过 | 45 个 Rust 测试通过：36 个单元测试、9 个假 App Server 跨进程契约 |
 | 假 App Server 契约 | 通过 | 覆盖完整只读握手、常驻会话、乱序响应按 ID 匹配、已知/未知通知、超时 pending 清理、迟到响应忽略、全部在途请求异常退出、未知服务端请求 `-32601`、远端错误脱敏、畸形 JSON 和 1 MiB 上限 |
 | `npm audit` | 通过 | 使用 npm 官方 registry，报告 0 vulnerabilities |
 | RustSec 依赖审计 | 通过并有警告 | `cargo-audit 0.22.2` 扫描 468 个依赖，0 个漏洞、17 个允许警告；GTK3/glib 警告来自 Tauri Linux 目标间接依赖，UNIC 等停止维护警告继续跟踪 |
-| Tauri 调试构建 | 通过 | `--debug --no-bundle` 成功生成 `src-tauri/target/debug/quota-glance.exe` |
+| Tauri 调试与 Release 构建 | 通过 | `--debug --no-bundle`、优化版 EXE、NSIS 和 MSI 均构建成功 |
 | Windows 进程烟测 | 通过 | 调试可执行文件启动后持续运行 3 秒，未发生启动即退出 |
 | 当前 Codex 真实只读 POC | 通过 | `codex-cli 0.144.0-alpha.4`，ChatGPT Pro，多桶/双窗口/Credits/banked reset 可读取；未输出邮箱、账号 ID、Token 或原始响应 |
 | Release 外部运行时发现 | 通过 | Release 启动 Codex 桌面受管 `codex.exe` 子进程；其自身及 `conhost.exe` 的主窗口句柄均为 0，主程序退出后 8 个后代进程全部回收 |
 | 球形浮球与右键菜单 | 通过 | 1200 × 720 极光/石墨/纸白验证；球体 128 × 128px、圆角 50%，标题、96%、重置日期和状态均位于球壳内；菜单仅含“设置”和“退出”；控制台无警告/错误 |
-| Release 原生启动与回收 | 通过 | 最终 Release 主窗口句柄非零且实测为 320 × 320；8 个 WebView/App Server 后代进程（含隐藏 `conhost.exe`）窗口句柄均为 0，结束主进程后残留为 0；136 × 136 原生浮球切换待 Windows 11 正式矩阵复核 |
+| 浮球原生拖拽 | 通过 | `scripts/smoke-orb-drag.ps1` 驱动真实鼠标输入；136 × 136 浮球移动 110px 且尺寸不变，拖后可展开为 320 × 320 卡片并恢复浮球 |
+| Release 原生启动与回收 | 通过 | 优化版 Release 主窗口句柄非零；8 个 WebView/App Server 后代进程窗口句柄均为 0；右键菜单退出后残留为 0；用户原始偏好已恢复 |
 
 #### 浏览器内 UI 验证
 
@@ -302,7 +303,7 @@ npm run tauri -- build --debug --no-bundle
 | 周额度筛选 | 通过 | 卡片、浮球和设置只显示 `weekly` 窗口，未出现 5 小时或月度 mock 窗口 |
 | 动态水面 | 通过 | 96% 时水面横穿数字基线下方，危险 7% 时液体降至球底；动画名为 `liquid-slosh`、周期 3.4s，并遵守减少动态效果设置 |
 | 控制台 | 通过 | 验证期间无 console warning 或 error |
-| 交互 | 通过 | 危险态切换后语义色和水位同步更新，卡片/浮球模式切换可操作 |
+| 交互 | 通过 | 危险态切换后语义色和水位同步更新；浏览器拖动手势后组件稳定，原生 Windows 拖拽、展开/收起和右键退出通过 |
 | 键盘与焦点 | 通过 | `Escape` 关闭设置后焦点返回触发按钮 |
 | 主题切换 | 通过 | 设置面板提供七个单选项；组件测试覆盖极光、石墨、纸白及三套暖色主题回调；浏览器逐项验证冷色发光边框、球壳和水体联动，三套暖色仍保持可选 |
 | 参考图同输入对比 | 通过 | 原始浮球参考图与最终极光主题局部截图在同一次视觉输入中成对复核；修复水线穿字、字重偏重和液体过暗后，无剩余 P0/P1/P2 差异 |
@@ -320,4 +321,4 @@ npm run tauri -- build --debug --no-bundle
 - RustSec 审计已执行且未发现漏洞；17 个维护或不健全警告已登记，后续依赖升级和发布 CI 仍需持续复核。
 - 未执行完整桌面 E2E、长驻稳定性、性能和多屏测试。
 
-结论：开发基线允许作为明确标注风险的 `0.1.0` 社区预览公开发布；在完成受控 App Server/sidecar、全平台实机、签名、公证和安装升级验收前，**禁止标记为正式稳定版本**，也不得将本报告作为 `1.0.0` 验收依据。
+结论：开发基线允许作为明确标注风险的 `0.1.1` 社区 prerelease 公开发布；在完成受控 App Server/sidecar、全平台实机、签名、公证和安装升级验收前，**禁止标记为正式稳定版本**，也不得将本报告作为 `1.0.0` 验收依据。

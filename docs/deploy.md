@@ -1,15 +1,15 @@
 # QuotaGlance 构建、签名与发布说明
 
 > 文档状态：发布方案初稿  
-> 核对日期：2026-07-12  
-> 当前阶段：0.1.0 可执行本地调试构建，不能作为正式版本发布  
+> 核对日期：2026-07-14
+> 当前阶段：0.1.1 跨平台 prerelease；不能作为正式稳定版发布
 > 文档维护：maorongkang@gmail.com
 
 ## 1. 当前状态
 
-仓库当前已有 Tauri 2、React/TypeScript 工程、前后端锁文件、严格检查脚本和跨平台 CI。`0.1.0` 通过 Git 标签触发 GitHub Actions，在原生 Runner 上构建 Windows x64、macOS Apple Silicon、macOS Intel、Linux x64 和 Linux ARM64 安装包，并在全部任务成功后上传 SHA-256 清单、公开为 GitHub 预览版。当前产物不包含可合法再分发的 production sidecar，也未完成 Windows 11 安装/升级/卸载、更新器、平台签名、公证或全平台实机验收，因此不能据此声称已有正式稳定版。
+仓库当前已有 Tauri 2、React/TypeScript 工程、前后端锁文件、严格检查脚本和跨平台 CI。`0.1.1` 通过 Git 标签触发 GitHub Actions，在原生 Runner 上构建 Windows x64、macOS Apple Silicon、macOS Intel、Linux x64 和 Linux ARM64 安装包，并在全部任务成功后上传 SHA-256 清单、公开为 GitHub prerelease。当前产物不包含可合法再分发的 production sidecar，也未完成 Windows 11 安装/升级/卸载、更新器、平台签名、公证或全平台实机验收，因此不能据此声称已有正式稳定版。
 
-公开预览版由 `.github/workflows/release.yml` 管理：先创建草稿 Release，各平台分别上传原生安装包；矩阵全部成功后生成 `SHA256SUMS.txt` 并公开为 prerelease。任一平台失败时 Release 保持草稿，避免向用户展示不完整资产。发布入口仅接受版本标签或维护者手动触发，Pull Request 不持有写入 Release 的权限。
+公开预览版由 `.github/workflows/release.yml` 管理：先校验 npm、Cargo、Tauri、锁文件与标签版本一致，并拒绝覆盖已公开版本；随后创建草稿 Release，各平台分别上传原生安装包。矩阵全部成功后，工作流确认恰好存在 8 个非空安装资产，生成不含自身的 `SHA256SUMS.txt`，执行 `sha256sum --check` 后才公开 prerelease。任一检查失败时 Release 保持草稿，避免向用户展示不完整资产。Pull Request 不持有写入 Release 的权限。
 
 正式发布必须由受控 CI 或专用构建机完成。本地开发包只用于调试，不得作为公开下载提供。
 
@@ -18,6 +18,7 @@
 ```powershell
 npm ci
 npm run check
+npm run release:check-version
 cargo test --manifest-path src-tauri/Cargo.toml --all-targets --all-features
 npm run tauri -- build --debug --no-bundle
 ```
@@ -311,14 +312,14 @@ Tauri 的静态更新 JSON 中，`signature` 必须是 `.sig` 文件内容，而
 
 ### 10.1 开发预览产物同步规则
 
-在项目进入正式版本发布前，工作区内每次代码、样式、配置或正式文档修改完成后，都必须同步更新 `release/QuotaGlance-0.1.0-windows-x64-preview/`：
+在项目进入正式版本发布前，工作区内每次代码、样式、配置或正式文档修改完成后，都必须同步更新 `release/QuotaGlance-0.1.1-windows-x64-preview/`：
 
 1. 运行前端检查和生产构建；
 2. 重新执行 Tauri Release 构建；
 3. 替换优化版 EXE、NSIS 安装器和 MSI 安装器；
 4. 重新计算并更新 `SHA256SUMS.txt`；
 5. 同步更新 `RELEASE-NOTES.md` 中的检查结果和限制；
-6. 至少完成一次主程序启动、App Server 子进程和退出回收烟测。
+6. 执行 `scripts/smoke-orb-drag.ps1`，完成原生浮球拖拽、展开/收起、右键退出、黑窗口和进程回收烟测。
 
 开发预览目录允许在版本号尚未递增时覆盖本地产物，但不得将被覆盖的产物对外宣称为不可变正式 Release。创建公开版本、Git 标签或更新清单后，必须遵守后文的版本不可覆盖规则，并通过更高版本号发布修复。
 

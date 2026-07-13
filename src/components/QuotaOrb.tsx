@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import type { CSSProperties, KeyboardEvent, MouseEvent } from "react";
 import {
   formatPercent,
@@ -15,8 +16,10 @@ interface QuotaOrbProps {
   modeBusy: boolean;
   onExpand: () => void;
   onOpenContextMenu: () => void;
+  onStartDragging?: () => void;
 }
 
+const ORB_DRAG_THRESHOLD_PX = 5;
 const ORB_WATER_HEIGHT_PER_PERCENT = 0.64;
 
 export function QuotaOrb({
@@ -25,7 +28,10 @@ export function QuotaOrb({
   modeBusy,
   onExpand,
   onOpenContextMenu,
+  onStartDragging,
 }: QuotaOrbProps) {
+  const dragOriginRef = useRef<{ x: number; y: number } | null>(null);
+  const dragStartedRef = useRef(false);
   const quotaWindow = selectWeeklyQuotaWindow(snapshot, preferences.widget.selectedQuota);
   const hasValue =
     quotaWindow !== null &&
@@ -56,9 +62,61 @@ export function QuotaOrb({
   };
 
   const handleContextMenu = (event: MouseEvent<HTMLDivElement>): void => {
+    dragOriginRef.current = null;
     event.preventDefault();
     event.stopPropagation();
     onOpenContextMenu();
+  };
+
+  const handleMouseDown = (event: MouseEvent<HTMLDivElement>): void => {
+    if (event.button !== 0 || modeBusy || onStartDragging === undefined) {
+      dragOriginRef.current = null;
+      return;
+    }
+
+    if (event.detail <= 1) {
+      dragStartedRef.current = false;
+    }
+
+    dragOriginRef.current = {
+      x: event.clientX,
+      y: event.clientY,
+    };
+  };
+
+  const handleMouseMove = (event: MouseEvent<HTMLDivElement>): void => {
+    const origin = dragOriginRef.current;
+    if (
+      origin === null ||
+      dragStartedRef.current ||
+      (event.buttons & 1) === 0 ||
+      onStartDragging === undefined
+    ) {
+      return;
+    }
+
+    const distance = Math.hypot(event.clientX - origin.x, event.clientY - origin.y);
+    if (distance < ORB_DRAG_THRESHOLD_PX) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    dragStartedRef.current = true;
+    onStartDragging();
+  };
+
+  const handleMouseUp = (): void => {
+    dragOriginRef.current = null;
+  };
+
+  const handleDoubleClick = (): void => {
+    if (dragStartedRef.current) {
+      dragStartedRef.current = false;
+      return;
+    }
+
+    activate();
   };
 
   const accessibleValue = hasValue
@@ -71,13 +129,16 @@ export function QuotaOrb({
     <div
       aria-busy={modeBusy}
       aria-haspopup="menu"
-      aria-label={`${accessibleValue}，双击或按 Enter 展开卡片，右键打开菜单`}
+      aria-label={`${accessibleValue}，按住左键拖动，双击或按 Enter 展开卡片，右键打开菜单`}
       className="quota-orb"
       data-status={snapshot.status}
       data-tone={tone}
-      onDoubleClick={activate}
       onContextMenu={handleContextMenu}
+      onDoubleClick={handleDoubleClick}
       onKeyDown={handleKeyDown}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
       role="button"
       style={waterStyle}
       tabIndex={0}

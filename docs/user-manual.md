@@ -1,28 +1,29 @@
 # QuotaGlance 用户手册
 
-> 手册版本：0.1.0 开发预览版 / 1.0 规划版  
-> 对应产品版本：0.1.0（源码开发基线），1.0.0（目标）  
-> 更新日期：2026-07-13  
+> 手册版本：0.1.1 跨平台预览版 / 1.0 规划版
+> 对应产品版本：0.1.1（公开预览），1.0.0（目标）
+> 更新日期：2026-07-14
 > 维护邮箱：maorongkang@gmail.com
 
 ## 1. 使用前说明
 
-QuotaGlance（额度一览）计划作为 Windows 与 macOS 上的本地 Codex 额度助手，通过浮球、展开卡片和系统托盘展示当前额度和重置时间。
+QuotaGlance（额度一览）是一款面向 Windows、macOS 与 Linux 的本地 Codex 额度助手，通过浮球、展开卡片和系统托盘展示当前额度和重置时间。
 
-**当前没有正式发布版；仅提供 0.1.0 源码开发预览和 Windows x64 未签名安装预览。** 该安装包没有合法 production sidecar 和 Authenticode 签名，不能作为真实额度产品分发。真实账号、完整设置、更新器、macOS 适配和签名安装器尚未完成。
+**当前提供 `0.1.1` GitHub 跨平台 prerelease，但没有正式稳定版。** Windows 安装包未进行 Authenticode 签名，macOS DMG 仅使用 ad-hoc 签名且未公证，Linux 尚未覆盖全部发行版与桌面环境；所有平台产物都不捆绑 Codex App Server sidecar。请只从 [GitHub Releases](https://github.com/qingyu6688/QuotaGlance/releases) 下载，并先阅读对应版本说明。
 
 QuotaGlance 是独立第三方工具，与 OpenAI 无隶属、授权或背书关系。
 
 ## 2. 适用范围
 
-### 2.1 计划支持的平台
+### 2.1 平台范围
 
-| 平台 | 1.0 计划 |
+| 平台 | 当前预览与 1.0 计划 |
 |---|---|
 | Windows 11 x64 | 正式支持 |
 | Windows 10 22H2 | 仅对仍获 ESU 安全更新的设备尽力支持 |
 | macOS 13 及以上，Apple Silicon | 正式支持 |
 | macOS 13 及以上，Intel | 正式支持 |
+| Linux x64、ARM64 | 提供社区预览；1.0 支持范围待实机反馈确定 |
 | Windows ARM64 | 计划在 1.1.x 评估 |
 
 ### 2.2 使用前提
@@ -32,35 +33,41 @@ QuotaGlance 是独立第三方工具，与 OpenAI 无隶属、授权或背书关
 1. 设备能够正常访问 Codex 服务。
 2. 用户已通过 Codex 官方客户端或 CLI 完成登录。
 3. 如使用 ChatGPT 订阅额度视图，当前认证方式需要由 Codex 服务提供对应的额度信息。
-4. 企业设备上的代理、安全软件和执行策略允许启动随包的 Codex App Server。
+4. 企业设备上的代理、安全软件和执行策略允许 QuotaGlance 启动本机已经安装的 Codex App Server。
 
 QuotaGlance 1.0 不计划提供自己的登录页，也不会要求用户把 Token、API Key 或 auth.json 内容粘贴到应用中。
 
-## 3. 开发预览与未来安装
+## 3. 预览版安装与开发运行
 
-当前没有面向普通用户的安装流程。开发者可在项目根目录执行 `npm ci` 后使用 `npm run dev` 查看基于模拟数据的前端预览；具备 Rust、Tauri 和系统依赖时，可使用 `npm run tauri -- dev` 启动桌面调试程序。开发预览不应作为日常额度工具或公开分发。
+`0.1.1` 安装资产发布在 [GitHub Releases](https://github.com/qingyu6688/QuotaGlance/releases/tag/v0.1.1)。请选择与系统和 CPU 架构匹配的文件，并使用同一 Release 中的 `SHA256SUMS.txt` 核对完整性。预览版未签名、未公证，也没有 bundled sidecar，不应在要求正式签名与受控供应链的生产环境中部署。
 
-以下 Windows 与 macOS 安装流程是 1.0 的规划行为，正式包发布后才可执行。
+开发者仍可在项目根目录执行 `npm ci` 后使用 `npm run dev` 查看模拟数据前端预览；具备 Rust、Tauri 和系统依赖时，可使用 `npm run tauri -- dev` 启动桌面调试程序。
 
 ### 3.1 Windows
 
-1. 从项目正式发布渠道下载安装包。
-2. 核对发布者签名后运行安装程序。
+1. 从 GitHub Release 下载 x64 NSIS `.exe` 或 MSI `.msi`。
+2. 核对版本、文件名和 SHA-256；当前预览版显示“未知发布者”属于已知限制。
 3. 完成安装并启动 QuotaGlance。
 4. 首次出现 Windows 安全提示时，先核对发布者、版本和下载来源；不要使用来源不明的未签名包。
 
 ### 3.2 macOS
 
-1. 下载与设备架构匹配的 DMG，或下载 Universal DMG。
+1. 下载与设备架构匹配的 Apple Silicon 或 Intel DMG。
 2. 将 QuotaGlance 拖入“应用程序”。
-3. 从“应用程序”启动，并核对 Developer ID 签名和公证状态。
-4. 如果 Gatekeeper 提示应用已损坏或无法验证，请先确认安装包来自正式发布渠道，不要用关闭系统安全检查的方式绕过。
+3. 从“应用程序”启动；当前预览版仅 ad-hoc 签名且未公证，Gatekeeper 可能阻止运行。
+4. 如果系统提示应用已损坏或无法验证，请先确认下载来源和 SHA-256，不要通过全局关闭 Gatekeeper 绕过。
 
-### 3.3 首次读取
+### 3.3 Linux
 
-首次启动后，QuotaGlance 预计会：
+1. x64 或 ARM64 用户下载对应的 `.AppImage` 或 `.deb`。
+2. 使用 `SHA256SUMS.txt` 核对文件；AppImage 需要具备可执行权限。
+3. 发行版需要提供 WebKitGTK 等 Tauri 运行依赖；当前尚未覆盖所有桌面环境。
 
-1. 启动随包的 Codex App Server。
+### 3.4 首次读取
+
+首次启动后，QuotaGlance 会尝试：
+
+1. 发现用户已经安装的 Codex CLI 或桌面应用受管运行时，并启动只读 App Server；
 2. 完成本地协议初始化。
 3. 读取当前认证状态。
 4. 在适用的 ChatGPT 认证模式下读取额度。
@@ -124,13 +131,13 @@ QuotaGlance 计划：
 2. 固定额度桶没有周额度时，选择其他桶中最先返回的周额度。
 3. 所有桶都没有周额度时显示不可用状态。
 
-计划交互：
+当前交互：
 
 - 双击浮球或按 Enter/Space：展开为卡片。
 - 右键浮球：打开只含“设置”和“退出”的系统原生菜单。
 - 选择“设置”：先展开卡片，再打开设置面板。
 - 选择“退出”：真正结束 QuotaGlance，并回收 App Server 子进程。
-- 拖动浮球：移动位置。
+- 按住浮球左键并移动超过 5px：拖动原生窗口；轻点不会误触，拖动后仍可正常双击展开。
 - 通过卡片或托盘：切换置顶与鼠标穿透。
 
 刷新、置顶和解除鼠标穿透不放进浮球右键菜单。它们仍可从展开卡片或系统托盘使用；这样右键菜单保持简洁，同时鼠标穿透后的托盘恢复入口不会丢失。

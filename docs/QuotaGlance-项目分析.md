@@ -238,7 +238,7 @@ npm audit --audit-level=high --registry=https://registry.npmjs.org
 
 结果：
 
-- 前端：2 个测试文件、14 个测试全部通过。
+- 前端：2 个测试文件、15 个测试全部通过，其中包含浮球拖拽阈值、单次触发和交互隔离回归。
 - Rust：45 个测试全部通过，其中包含 9 个假 App Server 跨进程契约测试。
 - TypeScript 与 Vite 生产构建通过。
 - npm 官方审计结果为 0 个已知漏洞。

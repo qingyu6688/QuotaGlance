@@ -14,8 +14,30 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  preflight:
+    name: 校验版本与发布状态
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: 获取代码
+        uses: actions/checkout@v7
+
+      - name: 校验版本一致性
+        run: node scripts/check-release-version.mjs "$GITHUB_REF_TYPE" "$GITHUB_REF_NAME"
+
+      - name: 禁止覆盖已公开版本
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          version="$(jq -r '.version' src-tauri/tauri.conf.json)"
+          if release="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/v$version" 2>/dev/null)"; then
+            test "$(jq -r '.draft' <<< "$release")" = "true"
+          fi
+
   publish:
     name: ${{ matrix.name }}
+    needs: preflight
     timeout-minutes: 90
     strategy:
       fail-fast: false
@@ -82,7 +104,7 @@ jobs:
           tagName: v__VERSION__
           releaseName: "QuotaGlance v__VERSION__ 跨平台预览版"
           releaseBody: |
-            QuotaGlance 首个开源跨平台预览版。
+            QuotaGlance 开源跨平台预览版。
 
             下载对应平台的安装包：
             - Windows x64：NSIS `.exe` 或 MSI `.msi`
@@ -126,6 +148,11 @@ jobs:
             | xargs -0 sha256sum \
             | sed 's#  \./#  #' > SHA256SUMS.txt
           test -s SHA256SUMS.txt
+          asset_count="$(find . -maxdepth 1 -type f ! -name 'SHA256SUMS.txt' | wc -l | tr -d ' ')"
+          checksum_count="$(wc -l < SHA256SUMS.txt | tr -d ' ')"
+          test "$asset_count" -eq 8
+          test "$checksum_count" -eq "$asset_count"
+          sha256sum --check SHA256SUMS.txt
 
       - name: 上传校验清单并公开 Release
         env:
