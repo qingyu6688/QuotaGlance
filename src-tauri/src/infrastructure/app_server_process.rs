@@ -3,7 +3,7 @@ use std::{
     ffi::{OsStr, OsString},
     fs,
     io::ErrorKind,
-    path::{Path, PathBuf},
+    path::PathBuf,
     process::Stdio,
     time::Duration,
 };
@@ -11,7 +11,7 @@ use std::{
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
 #[cfg(target_os = "windows")]
-use std::time::SystemTime;
+use std::{path::Path, time::SystemTime};
 
 use thiserror::Error;
 use tokio::{

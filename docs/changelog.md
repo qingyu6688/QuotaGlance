@@ -66,6 +66,7 @@
 ### 修复
 
 - Windows 启动常驻 Codex App Server 时使用 `CREATE_NO_WINDOW`，避免控制台子进程弹出 CMD 黑窗口。
+- 修复 `Path` 类型在 macOS/Linux 条件编译中形成未使用导入、导致跨平台 Clippy `-D warnings` 失败的问题。
 - 修复 Tauri 透明窗口根节点仍绘制方形底色的问题，使卡片四角完整透出桌面背景。
 - 卡片裁切改用 `overflow: clip`，避免主题按钮获得焦点时 WebView 把卡片滚动并裁掉顶部内容。
 
