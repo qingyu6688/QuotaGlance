@@ -102,11 +102,11 @@ jobs:
           APPLE_SIGNING_IDENTITY: ${{ startsWith(matrix.platform, 'macos') && '-' || '' }}
         with:
           tagName: v__VERSION__
-          releaseName: "QuotaGlance v__VERSION__ 跨平台预览版"
+          releaseName: "QuotaGlance v__VERSION__ 软件安装包（Windows / macOS / Linux）"
           releaseBody: |
-            QuotaGlance 开源跨平台预览版。
+            QuotaGlance 开源跨平台桌面软件安装包。
 
-            下载对应平台的安装包：
+            请在页面下方的 Assets 中下载对应平台的软件：
             - Windows x64：NSIS `.exe` 或 MSI `.msi`
             - macOS Apple Silicon / Intel：`.dmg`
             - Linux x64 / ARM64：`.AppImage` 或 `.deb`
@@ -115,7 +115,7 @@ jobs:
 
             重要说明：本版本未附带 Codex App Server sidecar。运行前需单独安装并登录 Codex；Windows 会优先复用 Codex 桌面应用受管运行时，macOS/Linux 会查找 PATH 和常见用户安装目录中的 `codex`。Windows 安装包未进行 Authenticode 签名，macOS 仅使用 ad-hoc 签名且未公证，系统可能显示安全提醒。
           releaseDraft: true
-          prerelease: true
+          prerelease: false
           generateReleaseNotes: true
           uploadUpdaterJson: false
           uploadUpdaterSignatures: false
@@ -124,7 +124,7 @@ jobs:
           args: ${{ matrix.args }}
 
   publish-checksums:
-    name: 生成校验和并公开预览版
+    name: 生成校验和并公开 Latest Release
     needs: publish
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -159,4 +159,8 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release upload "$TAG_NAME" release-assets/SHA256SUMS.txt --repo "$GITHUB_REPOSITORY" --clobber
-          gh release edit "$TAG_NAME" --repo "$GITHUB_REPOSITORY" --draft=false --prerelease
+          gh release edit "$TAG_NAME" --repo "$GITHUB_REPOSITORY" --draft=false --prerelease=false --latest
+          release_state="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG_NAME")"
+          test "$(jq -r '.draft' <<< "$release_state")" = "false"
+          test "$(jq -r '.prerelease' <<< "$release_state")" = "false"
+          test "$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq '.tag_name')" = "$TAG_NAME"
