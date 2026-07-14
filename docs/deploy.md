@@ -2,12 +2,12 @@
 
 > 文档状态：发布方案初稿  
 > 核对日期：2026-07-14
-> 当前阶段：0.1.4 跨平台社区预览；不能作为正式稳定版发布
+> 当前阶段：0.1.5 跨平台社区预览；不能作为正式稳定版发布
 > 文档维护：maorongkang@gmail.com
 
 ## 1. 当前状态
 
-仓库当前已有 Tauri 2、React/TypeScript 工程、前后端锁文件、严格检查脚本和跨平台 CI。`0.1.4` 通过 Git 标签触发 GitHub Actions，在原生 Runner 上构建 Windows x64、macOS Apple Silicon、macOS Intel、Linux x64 和 Linux ARM64 安装包，并在全部任务成功后上传 SHA-256 清单、公开为 Latest 社区预览 Release。当前产物不包含可合法再分发的 production sidecar，也未完成 Windows 11 安装/升级/卸载、更新器、平台签名、公证或全平台实机验收，因此不能据此声称已有正式稳定版。
+仓库当前已有 Tauri 2、React/TypeScript 工程、前后端锁文件、严格检查脚本和跨平台 CI。`0.1.5` 通过 Git 标签触发 GitHub Actions，在原生 Runner 上构建 Windows x64、macOS Apple Silicon、macOS Intel、Linux x64 和 Linux ARM64 安装包，并在全部任务成功后上传 SHA-256 清单、公开为 Latest 社区预览 Release。当前产物不包含可合法再分发的 production sidecar，也未完成 Windows 11 安装/升级/卸载、更新器、平台签名、公证或全平台实机验收，因此不能据此声称已有正式稳定版。
 
 公开预览版由 `.github/workflows/release.yml` 管理：先校验 npm、Cargo、Tauri、锁文件与标签版本一致，并拒绝覆盖已公开版本；随后创建草稿 Release，各平台分别上传原生安装包。矩阵全部成功后，工作流确认恰好存在 8 个非空安装资产，生成不含自身的 `SHA256SUMS.txt`，执行 `sha256sum --check` 后才以 `prerelease=false` 公开为 Latest 社区预览 Release。任一检查失败时 Release 保持草稿，避免向用户展示不完整资产。Pull Request 不持有写入 Release 的权限。
 
@@ -109,9 +109,9 @@ CI 在打包前必须完成：
 
 任意一步失败都应停止构建，不允许退回 PATH 中的任意 `codex` 继续发布。
 
-### 4.3 0.1.4 社区预览的运行时发现顺序
+### 4.3 0.1.5 社区预览的运行时发现顺序
 
-`0.1.4` 不携带或重新分发 Codex App Server sidecar，只复用用户本机已经安装的外部运行组件。Release 构建的顺序固定如下：
+`0.1.5` 不携带或重新分发 Codex App Server sidecar，只复用用户本机已经安装的外部运行组件。Release 构建的顺序固定如下：
 
 - Windows：`%LOCALAPPDATA%/OpenAI/Codex/bin/<runtime>/codex.exe` 中修改时间最新且仍位于受管根目录的普通文件，然后是 `PATH` 中首个可执行 `codex.exe`。
 - macOS：`/Applications/ChatGPT.app/Contents/Resources/codex`、`~/Applications/ChatGPT.app/Contents/Resources/codex`、`/Applications/Codex.app/Contents/Resources/codex`、`~/Applications/Codex.app/Contents/Resources/codex`，随后是 `PATH`、`/usr/local/bin/codex`、`/opt/homebrew/bin/codex`、`~/.local/bin/codex`、`~/.npm-global/bin/codex`。

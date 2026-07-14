@@ -31,6 +31,7 @@ auth.json
 coverage
 playwright-report
 test-results
+.playwright-mcp/
 
 # 本地 Release 交付目录（正式产物由受控发布系统保存）
 release/

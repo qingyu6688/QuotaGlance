@@ -2,7 +2,7 @@
 
 > 文档状态：测试计划与开发基线报告  
 > 核对日期：2026-07-14
-> 当前阶段：`0.1.4` 跨平台社区预览；本地自动化检查已通过，尚不满足正式稳定版条件
+> 当前阶段：`0.1.5` 跨平台社区预览；本地自动化检查已通过，尚不满足正式稳定版条件
 > 文档维护：maorongkang@gmail.com
 
 ## 1. 当前测试状态
@@ -361,3 +361,13 @@ npm run tauri -- build --debug --no-bundle
 - GitHub Runner 的构建成功只能作为编译与打包证据，不能替代 Windows 11、macOS Intel/Apple Silicon 和 Linux 桌面环境实机验收。
 
 结论：当前本地自动化基线允许进入 `0.1.4` 社区预览 Release 构建；在取得 sidecar 合法分发、全平台实机、签名、公证和安装升级证据前，**不得标记为正式稳定版本**。
+
+### 14.3 测试报告：0.1.5 macOS CI 门禁修复
+
+- 测试日期：2026-07-14
+- 基线性质：`0.1.5` 社区预览补丁；不改变额度读取、运行时发现或界面行为
+- 问题证据：`v0.1.4` 五个平台 Release 构建与软件资产发布成功，但随后独立 `main` CI 在 macOS 的 `cargo clippy --all-targets --all-features -- -D warnings` 步骤发现仅供测试使用的辅助函数在普通库目标中触发 `dead_code`
+- 修复方式：把 `find_macos_desktop_runtime` 限定为 `#[cfg(all(target_os = "macos", test))]`，生产路径继续通过 `find_macos_desktop_runtime_in_roots` 工作
+- 发布门禁：本地前端与 Rust 全量检查、Windows Release 烟测和版本一致性必须通过；再次推送 `main` 后，macOS、Windows、Linux CI 全部成功才允许创建 `v0.1.5` 标签
+
+该修复只收紧测试辅助代码的编译范围，不解除 bundled sidecar 来源、签名、公证和全平台实机验收阻塞。

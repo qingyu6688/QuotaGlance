@@ -32,19 +32,19 @@
 
 ## 下载 QuotaGlance
 
-当前版本：**`v0.1.4`**
+当前版本：**`v0.1.5`**
 
 选择与你的设备匹配的软件。Windows 普通用户推荐 EXE 安装版；Ubuntu、Debian 用户推荐 DEB；其他 Linux 发行版可优先尝试 AppImage。
 
 | 系统 | 适用设备 | 软件安装包 |
 |---|---|---|
-| Windows | x64 | [EXE 安装版（推荐）](https://github.com/qingyu6688/QuotaGlance/releases/download/v0.1.4/QuotaGlance_0.1.4_windows_x64-setup.exe) · [MSI 安装包](https://github.com/qingyu6688/QuotaGlance/releases/download/v0.1.4/QuotaGlance_0.1.4_windows_x64.msi) |
-| macOS | Apple Silicon | [DMG 安装包](https://github.com/qingyu6688/QuotaGlance/releases/download/v0.1.4/QuotaGlance_0.1.4_darwin_aarch64.dmg) |
-| macOS | Intel 处理器 | [DMG 安装包](https://github.com/qingyu6688/QuotaGlance/releases/download/v0.1.4/QuotaGlance_0.1.4_darwin_x64.dmg) |
-| Linux | x64 | [AppImage](https://github.com/qingyu6688/QuotaGlance/releases/download/v0.1.4/QuotaGlance_0.1.4_linux_amd64.AppImage) · [DEB](https://github.com/qingyu6688/QuotaGlance/releases/download/v0.1.4/QuotaGlance_0.1.4_linux_amd64.deb) |
-| Linux | ARM64 | [AppImage](https://github.com/qingyu6688/QuotaGlance/releases/download/v0.1.4/QuotaGlance_0.1.4_linux_aarch64.AppImage) · [DEB](https://github.com/qingyu6688/QuotaGlance/releases/download/v0.1.4/QuotaGlance_0.1.4_linux_arm64.deb) |
+| Windows | x64 | [EXE 安装版（推荐）](https://github.com/qingyu6688/QuotaGlance/releases/download/v0.1.5/QuotaGlance_0.1.5_windows_x64-setup.exe) · [MSI 安装包](https://github.com/qingyu6688/QuotaGlance/releases/download/v0.1.5/QuotaGlance_0.1.5_windows_x64.msi) |
+| macOS | Apple Silicon | [DMG 安装包](https://github.com/qingyu6688/QuotaGlance/releases/download/v0.1.5/QuotaGlance_0.1.5_darwin_aarch64.dmg) |
+| macOS | Intel 处理器 | [DMG 安装包](https://github.com/qingyu6688/QuotaGlance/releases/download/v0.1.5/QuotaGlance_0.1.5_darwin_x64.dmg) |
+| Linux | x64 | [AppImage](https://github.com/qingyu6688/QuotaGlance/releases/download/v0.1.5/QuotaGlance_0.1.5_linux_amd64.AppImage) · [DEB](https://github.com/qingyu6688/QuotaGlance/releases/download/v0.1.5/QuotaGlance_0.1.5_linux_amd64.deb) |
+| Linux | ARM64 | [AppImage](https://github.com/qingyu6688/QuotaGlance/releases/download/v0.1.5/QuotaGlance_0.1.5_linux_aarch64.AppImage) · [DEB](https://github.com/qingyu6688/QuotaGlance/releases/download/v0.1.5/QuotaGlance_0.1.5_linux_arm64.deb) |
 
-[查看全部版本](https://github.com/qingyu6688/QuotaGlance/releases) · [下载 SHA-256 校验文件](https://github.com/qingyu6688/QuotaGlance/releases/download/v0.1.4/SHA256SUMS.txt)
+[查看全部版本](https://github.com/qingyu6688/QuotaGlance/releases) · [下载 SHA-256 校验文件](https://github.com/qingyu6688/QuotaGlance/releases/download/v0.1.5/SHA256SUMS.txt)
 
 > [!NOTE]
 > 当前安装包尚未完成商业代码签名与 macOS 公证，首次启动时可能触发系统安全提示。请只从本仓库 Releases 页面下载，并使用 `SHA256SUMS.txt` 核对文件完整性。
@@ -86,7 +86,7 @@
 codex --version
 ```
 
-Windows 会优先发现已登录 Codex 桌面应用的受管运行时，因此不要求 `codex` 一定出现在 `PATH` 中。macOS 会优先检查系统与用户“应用程序”目录中的统一版 `ChatGPT.app`，再兼容旧版 `Codex.app`，最后回退到 `PATH` 和常见 CLI 目录；Linux 会检查 `PATH` 和常见用户安装目录。若仍无法发现，请先修复应用或 CLI 安装，再重新启动 QuotaGlance。这些候选均属于用户本机的外部安装，`0.1.4` 尚未验证其 OpenAI 代码签名，不能视为 QuotaGlance 随包提供的可信 sidecar。
+Windows 会优先发现已登录 Codex 桌面应用的受管运行时，因此不要求 `codex` 一定出现在 `PATH` 中。macOS 会优先检查系统与用户“应用程序”目录中的统一版 `ChatGPT.app`，再兼容旧版 `Codex.app`，最后回退到 `PATH` 和常见 CLI 目录；Linux 会检查 `PATH` 和常见用户安装目录。若仍无法发现，请先修复应用或 CLI 安装，再重新启动 QuotaGlance。这些候选均属于用户本机的外部安装，`0.1.5` 尚未验证其 OpenAI 代码签名，不能视为 QuotaGlance 随包提供的可信 sidecar。
 
 ### QuotaGlance 会读取我的 Token 吗？
 

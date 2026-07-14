@@ -186,7 +186,7 @@ IPC 中使用小写字符串表示这些状态：`stopped`、`locating`、`start
 2. 用户在设置中明确选择、已规范化并通过版本校验的外部 Codex CLI。
 3. 仅开发构建允许从 PATH 发现 `codex`，不能进入正式发布默认路径。
 
-以上是 `1.0.0` bundled sidecar 的目标顺序。`0.1.4` 社区预览不分发 sidecar，实际外部候选顺序为：debug 显式绝对路径；Windows 桌面应用管理的运行副本；macOS 系统级/用户级统一 `ChatGPT.app`，再到两处旧版 `Codex.app`；随后是 `PATH` 和平台常见 CLI 目录。macOS 只接受固定 `Contents/Resources/codex`，拒绝应用包或最终文件的符号链接逃逸。所有这些候选仍属于 `External` 安装，尚未验证 bundle identifier 或 OpenAI 签名身份，不能当作正式受信任 sidecar。
+以上是 `1.0.0` bundled sidecar 的目标顺序。`0.1.5` 社区预览不分发 sidecar，实际外部候选顺序为：debug 显式绝对路径；Windows 桌面应用管理的运行副本；macOS 系统级/用户级统一 `ChatGPT.app`，再到两处旧版 `Codex.app`；随后是 `PATH` 和平台常见 CLI 目录。macOS 只接受固定 `Contents/Resources/codex`，拒绝应用包或最终文件的符号链接逃逸。所有这些候选仍属于 `External` 安装，尚未验证 bundle identifier 或 OpenAI 签名身份，不能当作正式受信任 sidecar。
 
 随包 sidecar 的发布元数据至少包括：
 

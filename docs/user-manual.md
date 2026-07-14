@@ -1,7 +1,7 @@
 # QuotaGlance 用户手册
 
-> 手册版本：0.1.4 跨平台预览版 / 1.0 规划版
-> 对应产品版本：0.1.4（公开预览），1.0.0（目标）
+> 手册版本：0.1.5 跨平台预览版 / 1.0 规划版
+> 对应产品版本：0.1.5（公开预览），1.0.0（目标）
 > 更新日期：2026-07-14
 > 维护邮箱：maorongkang@gmail.com
 
@@ -9,7 +9,7 @@
 
 QuotaGlance（额度一览）是一款面向 Windows、macOS 与 Linux 的本地 Codex 额度助手，通过浮球、展开卡片和系统托盘展示当前额度和重置时间。
 
-**当前提供 `0.1.4` GitHub 跨平台社区预览，但没有正式稳定版。** Windows 安装包未进行 Authenticode 签名，macOS DMG 仅使用 ad-hoc 签名且未公证，Linux 尚未覆盖全部发行版与桌面环境；所有平台产物都不捆绑 Codex App Server sidecar。请只从 [GitHub Releases](https://github.com/qingyu6688/QuotaGlance/releases) 下载，并先阅读对应版本说明。
+**当前提供 `0.1.5` GitHub 跨平台社区预览，但没有正式稳定版。** Windows 安装包未进行 Authenticode 签名，macOS DMG 仅使用 ad-hoc 签名且未公证，Linux 尚未覆盖全部发行版与桌面环境；所有平台产物都不捆绑 Codex App Server sidecar。请只从 [GitHub Releases](https://github.com/qingyu6688/QuotaGlance/releases) 下载，并先阅读对应版本说明。
 
 QuotaGlance 是独立第三方工具，与 OpenAI 无隶属、授权或背书关系。
 
@@ -39,7 +39,7 @@ QuotaGlance 1.0 不计划提供自己的登录页，也不会要求用户把 Tok
 
 ## 3. 预览版安装与开发运行
 
-`0.1.4` 安装资产发布在 [GitHub Releases](https://github.com/qingyu6688/QuotaGlance/releases/tag/v0.1.4)。请选择与系统和 CPU 架构匹配的文件，并使用同一 Release 中的 `SHA256SUMS.txt` 核对完整性。预览版未完成商业签名与公证，也没有 bundled sidecar，不应在要求正式签名与受控供应链的生产环境中部署。
+`0.1.5` 安装资产发布在 [GitHub Releases](https://github.com/qingyu6688/QuotaGlance/releases/tag/v0.1.5)。请选择与系统和 CPU 架构匹配的文件，并使用同一 Release 中的 `SHA256SUMS.txt` 核对完整性。预览版未完成商业签名与公证，也没有 bundled sidecar，不应在要求正式签名与受控供应链的生产环境中部署。
 
 开发者仍可在项目根目录执行 `npm ci` 后使用 `npm run dev` 查看模拟数据前端预览；具备 Rust、Tauri 和系统依赖时，可使用 `npm run tauri -- dev` 启动桌面调试程序。
 

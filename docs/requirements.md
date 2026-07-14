@@ -1,7 +1,7 @@
 # QuotaGlance 需求规格说明书
 
 > 文档版本：1.0  
-> 产品版本：0.1.4（公开预览），1.0.0（目标）
+> 产品版本：0.1.5（公开预览），1.0.0（目标）
 > 文档状态：需求基线草案  
 > 更新日期：2026-07-14
 > 维护邮箱：maorongkang@gmail.com
@@ -10,7 +10,7 @@
 
 本文档定义 QuotaGlance 1.0 的产品范围、功能需求、非功能需求和验收口径，供设计、开发、测试和发布共同使用。
 
-截至本文档更新时，项目已形成可构建的 `0.1.4` 公开预览和调试程序，并已有协议解析、边界处理、界面组件及浮球原生拖拽的自动化与 Windows 烟测结果。当前已落地动态额度模型、只读类型化协议、安全限制、最小 Tauri Capability、套餐/短周期/周额度/重置机会投影和前端状态界面；这些实现仍属于预览版证据，不等同于 1.0 需求验收。
+截至本文档更新时，项目已形成可构建的 `0.1.5` 公开预览和调试程序，并已有协议解析、边界处理、界面组件及浮球原生拖拽的自动化与 Windows 烟测结果。当前已落地动态额度模型、只读类型化协议、安全限制、最小 Tauri Capability、套餐/短周期/周额度/重置机会投影和前端状态界面；这些实现仍属于预览版证据，不等同于 1.0 需求验收。
 
 当前没有正式稳定版；GitHub Releases 提供 Windows、macOS 与 Linux 的社区预览软件包。当前 Windows 登录账号的只读额度链路已验证，但可合法分发的 production sidecar、固定兼容版本、完整认证矩阵、更新器、macOS/Linux 实机以及平台签名、公证仍未完成。
 
@@ -138,7 +138,7 @@ QuotaGlance 是独立第三方工具，与 OpenAI 无隶属、授权或背书关
 
 | 编号 | 优先级 | 需求 | 验收要点 | 当前状态 |
 |---|---|---|---|---|
-| FR-001 | P0 | 应从受控位置启动 Codex App Server；`0.1.4` 可复用 `PATH`、Windows 受管运行时、macOS 统一 `ChatGPT.app` 或旧 `Codex.app` 的固定资源路径 | 不扫描任意应用包或私有缓存；路径规范化、校验普通可执行文件，macOS 拒绝符号链接逃逸；启动参数不可被前端任意控制 | 预览路径发现已实现，bundled sidecar 待验证 |
+| FR-001 | P0 | 应从受控位置启动 Codex App Server；`0.1.5` 可复用 `PATH`、Windows 受管运行时、macOS 统一 `ChatGPT.app` 或旧 `Codex.app` 的固定资源路径 | 不扫描任意应用包或私有缓存；路径规范化、校验普通可执行文件，macOS 拒绝符号链接逃逸；启动参数不可被前端任意控制 | 预览路径发现已实现，bundled sidecar 待验证 |
 | FR-002 | P0 | 每个连接必须先发送 initialize，收到成功响应后发送 initialized | 初始化前不发送业务请求；重复初始化和初始化失败均进入明确错误状态 | POC 待验证 |
 | FR-003 | P0 | 1.0 初始化时不得启用 experimentalApi | 协议记录和自动化测试可证明实验能力未开启 | 规划 |
 | FR-004 | P0 | App Server 异常退出后应按退避策略尝试恢复 | 不发生高频重启；连续失败后向用户显示可操作状态 | 已实现，实机恢复待验收 |
@@ -313,7 +313,7 @@ Codex 官方凭据存储配置包括 file、keyring 和 auto。正常路径由 A
 ## 11. 约束与待决事项
 
 1. M0 必须验证 App Server sidecar 在 Windows x64、macOS Intel 和 Apple Silicon 上的合法分发、签名与启动。
-2. `0.1.4` 外部候选允许列表仅包含 Windows 受管运行时、`PATH`、macOS `/Applications` 或 `~/Applications` 下的 `ChatGPT.app`/`Codex.app` 固定资源路径，以及常见 CLI 目录；macOS 优先统一版 ChatGPT，再兼容旧版 Codex，且不得扩展为任意扫描。候选尚未完成 OpenAI 签名身份验证。
+2. `0.1.5` 外部候选允许列表仅包含 Windows 受管运行时、`PATH`、macOS `/Applications` 或 `~/Applications` 下的 `ChatGPT.app`/`Codex.app` 固定资源路径，以及常见 CLI 目录；macOS 优先统一版 ChatGPT，再兼容旧版 Codex，且不得扩展为任意扫描。候选尚未完成 OpenAI 签名身份验证。
 3. App Server 认证模式和返回字段可能继续扩展，解析器必须对未知值安全降级。
 4. rateLimitsByLimitId 为首选多桶视图；rateLimits 是向后兼容单桶视图，二者的优先级不可颠倒。
 5. account/rateLimits/updated 可能只携带部分单桶信息，1.0 应始终在通知合并后完整重读。

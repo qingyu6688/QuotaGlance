@@ -350,7 +350,7 @@ flowchart TB
 2. 用户在设置中明确选择且通过校验的外部 Codex CLI。
 3. 仅开发构建可从 PATH 发现 CLI，用于 POC 和契约测试。
 
-`0.1.4` 社区预览不携带 sidecar，当前实现按平台发现用户已经安装的外部运行组件：Windows 先检查 Codex 桌面应用管理的运行副本，再检查 `PATH`；macOS 依次检查 `/Applications/ChatGPT.app`、`~/Applications/ChatGPT.app`、`/Applications/Codex.app`、`~/Applications/Codex.app` 内固定的 `Contents/Resources/codex`，随后检查 `PATH` 和常见 CLI 目录；Linux 先检查 `PATH`，再检查常见 CLI 目录。debug 构建还允许通过 `QUOTAGLANCE_CODEX_PATH` 指定绝对路径。当前外部候选尚未完成版本兼容、bundle identifier 或发行者签名校验，不能视为正式受信任的 bundled sidecar。
+`0.1.5` 社区预览不携带 sidecar，当前实现按平台发现用户已经安装的外部运行组件：Windows 先检查 Codex 桌面应用管理的运行副本，再检查 `PATH`；macOS 依次检查 `/Applications/ChatGPT.app`、`~/Applications/ChatGPT.app`、`/Applications/Codex.app`、`~/Applications/Codex.app` 内固定的 `Contents/Resources/codex`，随后检查 `PATH` 和常见 CLI 目录；Linux 先检查 `PATH`，再检查常见 CLI 目录。debug 构建还允许通过 `QUOTAGLANCE_CODEX_PATH` 指定绝对路径。当前外部候选尚未完成版本兼容、bundle identifier 或发行者签名校验，不能视为正式受信任的 bundled sidecar。
 
 任何来源都只能以固定参数 `app-server` 启动，不接受来自前端的可执行路径、命令行参数或环境变量透传。
 

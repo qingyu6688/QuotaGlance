@@ -321,7 +321,7 @@ fn locate_macos_desktop_runtime() -> Option<PathBuf> {
     find_macos_desktop_runtime_in_roots(&application_roots)
 }
 
-#[cfg(target_os = "macos")]
+#[cfg(all(target_os = "macos", test))]
 fn find_macos_desktop_runtime(applications_root: &Path) -> Option<PathBuf> {
     find_macos_desktop_runtime_in_roots(&[applications_root.to_path_buf()])
 }
