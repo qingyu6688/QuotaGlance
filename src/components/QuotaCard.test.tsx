@@ -60,7 +60,7 @@ function requireFirstBucket(snapshot: QuotaSnapshot): QuotaBucket {
 }
 
 describe("QuotaCard", () => {
-  it("保留当前周额度主视觉并补齐参考项目的短周期与重置机会", () => {
+  it("只展示周额度，同时保留重置机会", () => {
     const base = createMockSnapshot("ok");
     const baseBucket = requireFirstBucket(base);
     const snapshot: QuotaSnapshot = {
@@ -105,8 +105,8 @@ describe("QuotaCard", () => {
     renderCard("ok", snapshot);
 
     expect(screen.getByText("周额度")).toBeInTheDocument();
-    expect(screen.getByText("5 小时额度")).toBeInTheDocument();
-    expect(screen.getByText("74%")).toBeInTheDocument();
+    expect(screen.queryByText("5 小时额度")).not.toBeInTheDocument();
+    expect(screen.queryByText("74%")).not.toBeInTheDocument();
     expect(screen.getByText("重置机会")).toBeInTheDocument();
     expect(screen.getByText("1 次")).toBeInTheDocument();
     expect(screen.queryByText("月度审查额度")).not.toBeInTheDocument();
@@ -116,7 +116,7 @@ describe("QuotaCard", () => {
     );
   });
 
-  it("只有短周期时仍展示真实额度而不伪造周额度", () => {
+  it("只有短周期时不回退显示五小时额度", () => {
     const base = createMockSnapshot("ok");
     const baseBucket = requireFirstBucket(base);
     const snapshot: QuotaSnapshot = {
@@ -141,8 +141,9 @@ describe("QuotaCard", () => {
 
     renderCard("ok", snapshot);
 
-    expect(screen.getByText("5 小时额度")).toBeInTheDocument();
-    expect(screen.getByRole("progressbar", { name: "5 小时额度剩余 74%" })).toBeInTheDocument();
+    expect(screen.getByText("暂无可用周额度")).toBeInTheDocument();
+    expect(screen.queryByText("5 小时额度")).not.toBeInTheDocument();
+    expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
     expect(screen.queryByText("周额度")).not.toBeInTheDocument();
   });
 
@@ -171,7 +172,7 @@ describe("QuotaCard", () => {
 
     renderCard("ok", snapshot);
 
-    expect(screen.getByText("暂无可用额度")).toBeInTheDocument();
+    expect(screen.getByText("暂无可用周额度")).toBeInTheDocument();
     expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
   });
 

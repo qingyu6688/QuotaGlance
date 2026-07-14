@@ -19,10 +19,10 @@ describe("QuotaOrb", () => {
     expect(orb).toHaveStyle(
       "--quota-water-level: 96%",
     );
-    expect(orb).toHaveStyle("--quota-water-height: 63.2px");
+    expect(orb).toHaveStyle("--quota-water-height: 68.12px");
     expect(orb).toHaveTextContent("周额度");
     expect(orb).toHaveTextContent("96%");
-    expect(orb).toHaveTextContent(/\d+ 月 \d+ 日重置/);
+    expect(orb).toHaveTextContent(/\d+月\d+日重置/);
     expect(orb).toHaveTextContent("已展开额度卡片");
   });
 

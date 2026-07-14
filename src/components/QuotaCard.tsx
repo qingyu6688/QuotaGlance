@@ -81,8 +81,8 @@ const STATUS_MESSAGES: Readonly<
 };
 
 const FALLBACK_EMPTY_MESSAGE = {
-  title: "暂无可用额度",
-  description: "这次读取没有返回可展示的短周期或周额度，请稍后重新读取。",
+  title: "暂无可用周额度",
+  description: "这次读取没有返回可展示的周额度，请稍后重新读取。",
 };
 
 function isEmptyQuotaStatus(status: QuotaStatus): status is EmptyQuotaStatus {
@@ -93,7 +93,6 @@ interface QuotaWindowViewProps {
   quotaWindow: QuotaWindow;
   snapshot: QuotaSnapshot;
   preferences: Preferences;
-  primaryWindow: QuotaWindow | null;
   resetCreditCount: number | null;
   resetCreditExpirations: string[];
 }
@@ -102,7 +101,6 @@ function QuotaWindowView({
   quotaWindow,
   snapshot,
   preferences,
-  primaryWindow,
   resetCreditCount,
   resetCreditExpirations,
 }: QuotaWindowViewProps) {
@@ -126,40 +124,28 @@ function QuotaWindowView({
       </p>
       <ProgressBar label={quotaLabel} tone={tone} value={quotaWindow.remainingPercent} />
       <p className="quota-window__reset">{formatResetAt(quotaWindow.resetsAt)}</p>
-      {primaryWindow !== null || resetCreditCount !== null ? (
+      {resetCreditCount !== null ? (
         <div className="quota-window__reference-details">
-          {primaryWindow !== null ? (
-            <div className="quota-window__detail" data-testid="short-term-quota">
-              <Icon name="clock" size={17} />
+          <details className="quota-window__credits">
+            <summary>
+              <Icon name="refresh" size={17} />
               <span className="quota-window__detail-copy">
-                <span>{resolveQuotaWindowLabel(primaryWindow)}</span>
-                <small>{formatResetAt(primaryWindow.resetsAt)}</small>
+                <span>重置机会</span>
               </span>
-              <strong>{primaryWindow.remainingPercent}%</strong>
+              <strong>{resetCreditCount} 次</strong>
+            </summary>
+            <div className="quota-window__credit-popover">
+              {resetCreditExpirations.length > 0 ? (
+                resetCreditExpirations.map((expiration, index) => (
+                  <p key={expiration}>
+                    第 {index + 1} 次：{formatExpirationAt(expiration)}
+                  </p>
+                ))
+              ) : (
+                <p>当前只返回数量，未返回到期时间。</p>
+              )}
             </div>
-          ) : null}
-          {resetCreditCount !== null ? (
-            <details className="quota-window__credits">
-              <summary>
-                <Icon name="refresh" size={17} />
-                <span className="quota-window__detail-copy">
-                  <span>重置机会</span>
-                </span>
-                <strong>{resetCreditCount} 次</strong>
-              </summary>
-              <div className="quota-window__credit-popover">
-                {resetCreditExpirations.length > 0 ? (
-                  resetCreditExpirations.map((expiration, index) => (
-                    <p key={expiration}>
-                      第 {index + 1} 次：{formatExpirationAt(expiration)}
-                    </p>
-                  ))
-                ) : (
-                  <p>当前只返回数量，未返回到期时间。</p>
-                )}
-              </div>
-            </details>
-          ) : null}
+          </details>
         </div>
       ) : null}
     </section>
@@ -228,9 +214,8 @@ export function QuotaCard({
 }: QuotaCardProps) {
   const settingsButtonRef = useRef<HTMLButtonElement>(null);
   const presentation = resolveQuotaPresentation(snapshot, preferences.widget.selectedQuota);
-  const selectedWindow = presentation.weeklyWindow ?? presentation.primaryWindow;
-  const shortTermDetail =
-    presentation.weeklyWindow !== null ? presentation.primaryWindow : null;
+  // 当前产品只展示周额度；短周期额度仍由数据层解析，后续可按需求恢复。
+  const selectedWindow = presentation.weeklyWindow;
   const refreshing = refreshState.phase === "refreshing" || pendingAction === "refresh";
   const refreshDisabled = pendingAction !== null || refreshing || refreshState.phase === "cooldown";
   const hasReadings =
@@ -318,7 +303,6 @@ export function QuotaCard({
         {snapshot.status === "loading" ? <QuotaLoading /> : null}
         {hasReadings ? (
           <QuotaWindowView
-            primaryWindow={shortTermDetail}
             preferences={preferences}
             quotaWindow={selectedWindow}
             resetCreditCount={presentation.resetCreditCount}

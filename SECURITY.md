@@ -18,4 +18,13 @@
 
 不要发送 Token、Cookie、`auth.json`、真实账号响应、私钥或完整个人路径。维护者会尽快确认收到报告，并在完成修复和发布后协调公开披露。
 
-完整威胁模型、权限边界和发布安全要求见 [docs/security.md](docs/security.md)。
+## 安全边界
+
+- QuotaGlance 只通过用户本机已安装的 Codex 运行组件启动只读 `app-server` 会话，不读取 `auth.json`、Token、Cookie、API Key 或系统凭据库。
+- 应用不会直接调用非公开额度 HTTP 接口，不会执行登录、退出、购买额度或消耗重置机会等账号写操作。
+- 额度快照仅在本机内存中处理；本地偏好只保存主题、窗口模式、置顶、鼠标穿透和登录时启动等界面配置。
+- 项目不会上传额度历史、账号响应、提示词、项目内容或本机路径，也不提供由维护者运营的云端同步服务。
+- 当前预览版不捆绑或重新分发 Codex App Server。请只从本仓库的 Releases 页面下载安装包，并使用同页提供的 `SHA256SUMS.txt` 校验文件完整性。
+- 当前 Windows 安装包尚未进行 Authenticode 签名，macOS 安装包尚未完成 Developer ID 签名与公证；系统安全提示不能作为关闭系统防护的理由。
+
+安全问题请发送至 maorongkang@gmail.com，并遵循最小披露原则。

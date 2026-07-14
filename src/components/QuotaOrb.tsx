@@ -20,8 +20,8 @@ interface QuotaOrbProps {
 }
 
 const ORB_DRAG_THRESHOLD_PX = 5;
-const ORB_WATER_MIN_HEIGHT_PX = 44;
-const ORB_WATER_DYNAMIC_RANGE_PX = 20;
+const ORB_WATER_MIN_HEIGHT_PX = 47;
+const ORB_WATER_DYNAMIC_RANGE_PX = 22;
 
 export function QuotaOrb({
   snapshot,
@@ -155,20 +155,11 @@ export function QuotaOrb({
       tabIndex={0}
     >
       <span aria-hidden="true" className="quota-orb__aurora" />
-      {hasValue ? <span aria-hidden="true" className="quota-orb__water" /> : null}
-      <svg aria-hidden="true" className="quota-orb__ring" viewBox="0 0 128 128">
-        <circle className="quota-orb__track" cx="64" cy="64" pathLength="100" r="58" />
-        {hasValue ? (
-          <circle
-            className="quota-orb__value"
-            cx="64"
-            cy="64"
-            pathLength="100"
-            r="58"
-            strokeDasharray={`${quotaWindow.remainingPercent} 100`}
-          />
-        ) : null}
-      </svg>
+      {hasValue ? (
+        <span aria-hidden="true" className="quota-orb__water">
+          <span className="quota-orb__bubble" />
+        </span>
+      ) : null}
       <span className="quota-orb__content">
         {snapshot.status === "loading" ? <span className="skeleton skeleton--orb" /> : null}
         {hasValue ? (
@@ -178,7 +169,9 @@ export function QuotaOrb({
               <span>{quotaWindow.remainingPercent}</span>
               <small>%</small>
             </strong>
-            <span className="quota-orb__reset">{formatResetAt(quotaWindow.resetsAt)}</span>
+            <span className="quota-orb__reset">
+              {formatResetAt(quotaWindow.resetsAt).replace(/\s+/g, "")}
+            </span>
             <span className="quota-orb__state">
               <span
                 aria-hidden="true"

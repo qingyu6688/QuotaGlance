@@ -36,6 +36,11 @@ test-results
 # 本地 Release 交付目录（正式产物由受控发布系统保存）
 release/
 
+# 本地项目过程文档（公共仓库仅保留版本更新日志）
+/design-qa.md
+/docs/*.md
+!/docs/changelog.md
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

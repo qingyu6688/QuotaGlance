@@ -8,7 +8,7 @@
 
 <p align="center">
   轻量、本地、只读的 Codex 桌面额度工具。<br>
-  用可展开额度卡片和动态水面悬浮球，随时查看周额度、短周期额度、重置机会与连接状态。
+  用可展开额度卡片和动态水面悬浮球，随时查看周额度、重置时间与连接状态。
 </p>
 
 <p align="center">
@@ -26,39 +26,42 @@
   <a href="#从源码构建">从源码构建</a>
 </p>
 
-![QuotaGlance 周额度卡片与动态水面悬浮球界面预览](docs/design-assets/quotaglance-showcase-v3.png)
+<p align="center">
+  <img src="docs/design-assets/quotaglance-card-v0.1.7.png" width="368" alt="QuotaGlance 周额度卡片">
+  <img src="docs/design-assets/quotaglance-orb-v0.1.7.png" width="184" alt="QuotaGlance 动态水面悬浮球">
+</p>
 
-<p align="center"><sub>周额度卡片与动态水面悬浮球界面预览，额度和日期会根据当前账号实时变化。</sub></p>
+<p align="center"><sub>v0.1.7 真实桌面窗口：完整圆角周额度卡片与透明玻璃水球。额度和日期会根据当前账号实时变化。</sub></p>
 
-## v0.1.6 更新
+## v0.1.7 更新
 
-- 重新梳理 320 × 320 卡片的信息层级，短周期额度与重置机会改为更易读的整行详情，操作反馈不再覆盖数据新鲜度。
-- 设置改为完整玻璃面板，七套主题可在同一行快速切换，并补齐键盘方向键、焦点约束与 Escape 关闭行为。
-- 统一暖色主题的球壳、水体、水线与状态色，收紧浮球外发光范围，避免在 136 × 136 透明窗口中被裁切。
-- 浮球继续支持拖拽、双击展开和精简右键菜单，同时补充键盘菜单键操作。
+- 卡片和悬浮球聚焦周额度，暂时隐藏五小时/短周期额度，避免已停用口径继续占用界面空间。
+- 修正透明窗口的裁切与背景叠层，卡片保持完整圆角矩形，不再出现隐约的方形底框。
+- 按玻璃水球方向重新设计悬浮球，强化球壳高光、水线、液体层次、气泡和轻微晃动效果。
+- 精简仅用于内部过程记录的 Markdown 文档，公开仓库保留使用、协作、安全和版本维护所需内容。
 
 ## 下载 QuotaGlance
 
-当前版本：**`v0.1.6`**
+当前版本：**`v0.1.7`**
 
 选择与你的设备匹配的软件。Windows 普通用户推荐 EXE 安装版；Ubuntu、Debian 用户推荐 DEB；其他 Linux 发行版可优先尝试 AppImage。
 
 | 系统 | 适用设备 | 软件安装包 |
 |---|---|---|
-| Windows | x64 | [EXE 安装版（推荐）](https://github.com/qingyu6688/QuotaGlance/releases/download/v0.1.6/QuotaGlance_0.1.6_windows_x64-setup.exe) · [MSI 安装包](https://github.com/qingyu6688/QuotaGlance/releases/download/v0.1.6/QuotaGlance_0.1.6_windows_x64.msi) |
-| macOS | Apple Silicon | [DMG 安装包](https://github.com/qingyu6688/QuotaGlance/releases/download/v0.1.6/QuotaGlance_0.1.6_darwin_aarch64.dmg) |
-| macOS | Intel 处理器 | [DMG 安装包](https://github.com/qingyu6688/QuotaGlance/releases/download/v0.1.6/QuotaGlance_0.1.6_darwin_x64.dmg) |
-| Linux | x64 | [AppImage](https://github.com/qingyu6688/QuotaGlance/releases/download/v0.1.6/QuotaGlance_0.1.6_linux_amd64.AppImage) · [DEB](https://github.com/qingyu6688/QuotaGlance/releases/download/v0.1.6/QuotaGlance_0.1.6_linux_amd64.deb) |
-| Linux | ARM64 | [AppImage](https://github.com/qingyu6688/QuotaGlance/releases/download/v0.1.6/QuotaGlance_0.1.6_linux_aarch64.AppImage) · [DEB](https://github.com/qingyu6688/QuotaGlance/releases/download/v0.1.6/QuotaGlance_0.1.6_linux_arm64.deb) |
+| Windows | x64 | [EXE 安装版（推荐）](https://github.com/qingyu6688/QuotaGlance/releases/download/v0.1.7/QuotaGlance_0.1.7_windows_x64-setup.exe) · [MSI 安装包](https://github.com/qingyu6688/QuotaGlance/releases/download/v0.1.7/QuotaGlance_0.1.7_windows_x64.msi) |
+| macOS | Apple Silicon | [DMG 安装包](https://github.com/qingyu6688/QuotaGlance/releases/download/v0.1.7/QuotaGlance_0.1.7_darwin_aarch64.dmg) |
+| macOS | Intel 处理器 | [DMG 安装包](https://github.com/qingyu6688/QuotaGlance/releases/download/v0.1.7/QuotaGlance_0.1.7_darwin_x64.dmg) |
+| Linux | x64 | [AppImage](https://github.com/qingyu6688/QuotaGlance/releases/download/v0.1.7/QuotaGlance_0.1.7_linux_amd64.AppImage) · [DEB](https://github.com/qingyu6688/QuotaGlance/releases/download/v0.1.7/QuotaGlance_0.1.7_linux_amd64.deb) |
+| Linux | ARM64 | [AppImage](https://github.com/qingyu6688/QuotaGlance/releases/download/v0.1.7/QuotaGlance_0.1.7_linux_aarch64.AppImage) · [DEB](https://github.com/qingyu6688/QuotaGlance/releases/download/v0.1.7/QuotaGlance_0.1.7_linux_arm64.deb) |
 
-[查看全部版本](https://github.com/qingyu6688/QuotaGlance/releases) · [下载 SHA-256 校验文件](https://github.com/qingyu6688/QuotaGlance/releases/download/v0.1.6/SHA256SUMS.txt)
+[查看全部版本](https://github.com/qingyu6688/QuotaGlance/releases) · [下载 SHA-256 校验文件](https://github.com/qingyu6688/QuotaGlance/releases/download/v0.1.7/SHA256SUMS.txt)
 
 > [!NOTE]
 > 当前安装包尚未完成商业代码签名与 macOS 公证，首次启动时可能触发系统安全提示。请只从本仓库 Releases 页面下载，并使用 `SHA256SUMS.txt` 核对文件完整性。
 
 ## 为什么使用 QuotaGlance
 
-- **关键额度一眼可见**：悬浮球聚焦周额度；展开卡片同时展示套餐、服务端实际返回的短周期/5 小时额度、周额度、重置时间、可用重置机会与到期时间。
+- **周额度一眼可见**：悬浮球与展开卡片统一聚焦周额度、重置时间和数据状态，暂不展示五小时/短周期额度。
 - **动态水面悬浮球**：水位随额度变化，水面带有轻微晃动、回弹和主题光效。
 - **自由放置**：按住悬浮球即可拖到桌面任意位置，卡片/浮球显示模式会保存在本机。
 - **快捷但不打扰**：双击展开或收起额度卡片；右键菜单只保留“设置”和“退出”。
@@ -93,15 +96,11 @@
 codex --version
 ```
 
-Windows 会优先发现已登录 Codex 桌面应用的受管运行时，因此不要求 `codex` 一定出现在 `PATH` 中。macOS 会优先检查系统与用户“应用程序”目录中的统一版 `ChatGPT.app`，再兼容旧版 `Codex.app`，最后回退到 `PATH` 和常见 CLI 目录；Linux 会检查 `PATH` 和常见用户安装目录。若仍无法发现，请先修复应用或 CLI 安装，再重新启动 QuotaGlance。这些候选均属于用户本机的外部安装，`0.1.6` 尚未验证其 OpenAI 代码签名，不能视为 QuotaGlance 随包提供的可信 sidecar。
+Windows 会优先发现已登录 Codex 桌面应用的受管运行时，因此不要求 `codex` 一定出现在 `PATH` 中。macOS 会优先检查系统与用户“应用程序”目录中的统一版 `ChatGPT.app`，再兼容旧版 `Codex.app`，最后回退到 `PATH` 和常见 CLI 目录；Linux 会检查 `PATH` 和常见用户安装目录。若仍无法发现，请先修复应用或 CLI 安装，再重新启动 QuotaGlance。这些候选均属于用户本机的外部安装，`0.1.7` 尚未验证其 OpenAI 代码签名，不能视为 QuotaGlance 随包提供的可信 sidecar。
 
 ### QuotaGlance 会读取我的 Token 吗？
 
 不会。QuotaGlance 不读取 `auth.json`，不访问系统凭据库，也不保存 Token、API Key 或账号密码；它不会直接调用非公开 `wham` HTTP 接口。额度认证与服务请求始终由本机 Codex App Server 处理。
-
-### 为什么有时看不到 5 小时额度或重置机会？
-
-悬浮球始终以周额度作为主视图。展开卡片只展示 Codex App Server 实际返回的字段：账号存在短周期/5 小时窗口时才显示该项，存在可用重置机会时才显示数量与到期时间；缺失字段不会被伪造成 `0`。
 
 ### 为什么系统提示安装包来源未知？
 

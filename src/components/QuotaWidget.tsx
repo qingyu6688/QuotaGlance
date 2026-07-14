@@ -31,6 +31,7 @@ export function QuotaWidget() {
   return (
     <main
       className="quota-app quota-app--widget"
+      data-current-mode={mode}
       data-runtime={isTauriRuntime ? "tauri" : "browser-mock"}
       data-theme={preferences.theme}
     >
