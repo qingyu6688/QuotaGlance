@@ -2,7 +2,7 @@
 
 > 文档状态：目标详细设计；`0.1.x` 已实现首批模块
 > 目标版本：`1.0.0`  
-> 最后更新：2026-07-13  
+> 最后更新：2026-07-14
 > 维护联系：`maorongkang@gmail.com`
 
 ## 1. 设计说明
@@ -15,9 +15,9 @@
 
 - 已实现动态 Rust 领域模型、严格 JSONL 大小与消息校验、只读常驻 App Server 会话、pending request map，以及基础刷新状态。
 - 已建立 `test-support` 假 App Server 和 9 项跨进程契约；假服务不会进入默认 Tauri 构建，也不能替代真实 sidecar 兼容性验证。
-- 已接通 `get_quota_snapshot`、`refresh_quota`、`get_app_server_status`、`get_preferences`、`set_theme`、`set_widget_mode`、`set_always_on_top`、`set_click_through`、`quit_app` 9 个 IPC，并完成基础窗口、托盘和 React UI。
+- 已接通 `get_quota_snapshot`、`refresh_quota`、`get_app_server_status`、`get_preferences`、`set_theme`、`set_widget_mode`、`set_always_on_top`、`set_click_through`、`set_launch_at_login`、`quit_app` 10 个 IPC，并完成基础窗口、托盘和 React UI。
 - App Server 已按应用进程复用常驻连接；通知驱动、30 秒自动刷新缓存、SingleFlight、最后成功快照、可见/隐藏定时重同步和刷新退避已实现。
-- 窗口模式、置顶、穿透和主题偏好已原子落盘并支持备份恢复；完整偏好 Patch/revision 冲突、语言、窗口边界、更新器、生产 sidecar 定位与分发尚未实现。
+- 窗口模式、置顶、穿透、主题和登录时启动偏好已落盘并支持失败恢复；完整偏好 Patch/revision 冲突、语言、窗口边界、更新器、生产 sidecar 定位与分发尚未实现。
 
 ## 2. 目标目录与模块
 
@@ -46,7 +46,6 @@ src-tauri/src/
       protocol.rs
       parser.rs
       schema/                 # 固定 sidecar 生成的协议类型或受控包装
-    legacy_wham.rs            # 默认关闭，单独编译特性或显式设置启用
   services/
     mod.rs
     quota_service.rs
@@ -186,6 +185,8 @@ IPC 中使用小写字符串表示这些状态：`stopped`、`locating`、`start
 1. 正式应用包内、与当前目标架构匹配的 sidecar。
 2. 用户在设置中明确选择、已规范化并通过版本校验的外部 Codex CLI。
 3. 仅开发构建允许从 PATH 发现 `codex`，不能进入正式发布默认路径。
+
+以上是 `1.0.0` bundled sidecar 的目标顺序。`0.1.4` 社区预览不分发 sidecar，实际外部候选顺序为：debug 显式绝对路径；Windows 桌面应用管理的运行副本；macOS 系统级/用户级统一 `ChatGPT.app`，再到两处旧版 `Codex.app`；随后是 `PATH` 和平台常见 CLI 目录。macOS 只接受固定 `Contents/Resources/codex`，拒绝应用包或最终文件的符号链接逃逸。所有这些候选仍属于 `External` 安装，尚未验证 bundle identifier 或 OpenAI 签名身份，不能当作正式受信任 sidecar。
 
 随包 sidecar 的发布元数据至少包括：
 
@@ -591,6 +592,8 @@ scaleFactorAtSave
 
 - `set_always_on_top` 或 `set_click_through` 先调用平台 API，成功后再保存偏好并发事件。
 - 平台调用失败时保持旧运行状态和旧偏好，返回可本地化错误。
+- `set_launch_at_login` 先读取系统登录项实际状态，再调用 autostart 插件启用或禁用；偏好保存失败时回滚系统登录项，回滚失败返回 `STARTUP_OPERATION_FAILED`。
+- 应用启动时以系统登录项实际状态校准内存偏好，避免配置文件与操作系统状态不一致。
 - 从托盘解除穿透属于恢复通道，即使偏好文件损坏也必须可用。
 - 第二个应用实例启动时唤醒现有实例并执行一次窗口可见区域校验。
 

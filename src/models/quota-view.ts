@@ -1,5 +1,6 @@
 import type {
   Preferences,
+  QuotaBucket,
   QuotaSnapshot,
   QuotaStatus,
   QuotaWindow,
@@ -9,27 +10,85 @@ import type {
 export type QuotaTone = "healthy" | "warning" | "danger" | "neutral";
 
 export const WEEKLY_QUOTA_LABEL = "周额度";
+export const SHORT_TERM_QUOTA_LABEL = "短周期额度";
+
+export interface QuotaPresentation {
+  bucket: QuotaBucket | null;
+  primaryWindow: QuotaWindow | null;
+  weeklyWindow: QuotaWindow | null;
+  resetCreditCount: number | null;
+  resetCreditExpirations: string[];
+}
+
+function selectPreferredBucket(
+  snapshot: QuotaSnapshot,
+  selectedQuota: SelectedQuota,
+): QuotaBucket | null {
+  if (selectedQuota.limitId !== null) {
+    const selected = snapshot.buckets.find((bucket) => bucket.limitId === selectedQuota.limitId);
+    if (selected !== undefined) {
+      return selected;
+    }
+  }
+
+  return (
+    snapshot.buckets.find(
+      (bucket) =>
+        bucket.limitId.toLowerCase() === "codex" &&
+        bucket.windows.some(isSupportedQuotaWindow),
+    ) ??
+    snapshot.buckets.find((bucket) => bucket.windows.some(isSupportedQuotaWindow)) ??
+    null
+  );
+}
+
+function isSupportedQuotaWindow(quotaWindow: QuotaWindow): boolean {
+  return quotaWindow.kind === "shortTerm" || quotaWindow.kind === "weekly";
+}
+
+export function resolveQuotaPresentation(
+  snapshot: QuotaSnapshot,
+  selectedQuota: SelectedQuota,
+): QuotaPresentation {
+  const bucket = selectPreferredBucket(snapshot, selectedQuota);
+  const primaryWindow =
+    bucket?.windows.find((quotaWindow) => quotaWindow.kind === "shortTerm") ?? null;
+  const weeklyWindow =
+    bucket?.windows.find((quotaWindow) => quotaWindow.kind === "weekly") ?? null;
+  const resetCreditExpirations = Array.from(
+    new Set(
+      (snapshot.bankedResets?.details ?? [])
+        .map((detail) => detail.expiresAt)
+        .filter((value): value is string => value !== null),
+    ),
+  ).sort();
+
+  return {
+    bucket,
+    primaryWindow,
+    weeklyWindow,
+    resetCreditCount: snapshot.bankedResets?.availableCount ?? null,
+    resetCreditExpirations,
+  };
+}
 
 export function selectWeeklyQuotaWindow(
   snapshot: QuotaSnapshot,
   selectedQuota: SelectedQuota,
 ): QuotaWindow | null {
-  let firstWeeklyWindow: QuotaWindow | null = null;
+  return resolveQuotaPresentation(snapshot, selectedQuota).weeklyWindow;
+}
 
-  for (const bucket of snapshot.buckets) {
-    for (const quotaWindow of bucket.windows) {
-      if (quotaWindow.kind !== "weekly") {
-        continue;
-      }
-
-      firstWeeklyWindow ??= quotaWindow;
-      if (selectedQuota.limitId === null || bucket.limitId === selectedQuota.limitId) {
-        return quotaWindow;
-      }
-    }
+export function resolveQuotaWindowLabel(quotaWindow: QuotaWindow): string {
+  if (quotaWindow.kind === "weekly") {
+    return WEEKLY_QUOTA_LABEL;
   }
 
-  return firstWeeklyWindow;
+  const hours = quotaWindow.windowDurationMins / 60;
+  if (Number.isInteger(hours) && hours > 0 && hours < 24) {
+    return `${hours} 小时额度`;
+  }
+  return SHORT_TERM_QUOTA_LABEL;
 }
 
 export function resolvePlanLabel(snapshot: QuotaSnapshot): string {
@@ -97,6 +156,20 @@ export function formatResetAt(value: string, now = Date.now()): string {
 
   const date = new Date(resetAt);
   return `${date.getMonth() + 1} 月 ${date.getDate()} 日重置`;
+}
+
+export function formatExpirationAt(value: string): string {
+  const expiration = Date.parse(value);
+  if (!Number.isFinite(expiration)) {
+    return "到期时间未知";
+  }
+
+  return new Intl.DateTimeFormat("zh-CN", {
+    month: "numeric",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(expiration);
 }
 
 export function formatFreshness(snapshot: QuotaSnapshot, now = Date.now()): string {

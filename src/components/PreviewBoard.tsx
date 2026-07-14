@@ -102,6 +102,7 @@ export function PreviewBoard() {
             onSettingsOpenChange={setSettingsOpen}
             onToggleAlwaysOnTop={() => void controller.toggleAlwaysOnTop()}
             onToggleClickThrough={() => void controller.toggleClickThrough()}
+            onToggleLaunchAtLogin={() => void controller.toggleLaunchAtLogin()}
             pendingAction={controller.pendingAction}
             preferences={preferences}
             refreshState={controller.refreshState}

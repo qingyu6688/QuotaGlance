@@ -22,6 +22,8 @@ export const tauriClient: QuotaGlanceApi = {
     invoke<WindowState>("set_always_on_top", { enabled }),
   setClickThrough: (enabled: boolean) =>
     invoke<WindowState>("set_click_through", { enabled }),
+  setLaunchAtLogin: (enabled: boolean) =>
+    invoke<PreferencesEnvelope>("set_launch_at_login", { enabled }),
   quitApp: () => invoke<void>("quit_app"),
   onQuotaSnapshot: (listener: (snapshot: QuotaSnapshot) => void): Promise<Unsubscribe> =>
     listen<QuotaSnapshot>("quota://snapshot-updated", (event) => listener(event.payload)),

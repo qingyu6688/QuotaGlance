@@ -27,7 +27,7 @@ export interface AuthSummary {
   requiresOpenaiAuth: boolean | null;
 }
 
-export type QuotaSource = "appServer" | "legacyCompat";
+export type QuotaSource = "appServer";
 export type WindowSlot = "primary" | "secondary" | "other";
 export type WindowKind = "shortTerm" | "weekly" | "monthly" | "unknown";
 
@@ -95,6 +95,7 @@ export type ErrorCode =
   | "PREFERENCES_CORRUPTED"
   | "PREFERENCES_VERSION_UNSUPPORTED"
   | "PREFERENCES_WRITE_FAILED"
+  | "STARTUP_OPERATION_FAILED"
   | "WINDOW_OPERATION_FAILED"
   | "UPDATE_CHECK_FAILED"
   | "UPDATE_SIGNATURE_INVALID"
@@ -111,7 +112,7 @@ export interface QuotaSnapshot {
   schemaVersion: 1;
   revision: number;
   source: QuotaSource | null;
-  provider: "codexAppServer" | "legacyWham" | null;
+  provider: "codexAppServer" | null;
   auth: AuthSummary;
   buckets: QuotaBucket[];
   bankedResets: ResetCreditSummary | null;

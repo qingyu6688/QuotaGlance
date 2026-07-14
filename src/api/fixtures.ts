@@ -42,6 +42,15 @@ function createHealthySnapshot(now: number, remainingPercent: number): QuotaSnap
         windows: [
           {
             slot: "primary",
+            kind: "shortTerm",
+            label: "5 小时额度",
+            usedPercent: 26,
+            remainingPercent: 74,
+            windowDurationMins: 300,
+            resetsAt: isoAfter(now, 78),
+          },
+          {
+            slot: "secondary",
             kind: "weekly",
             label: "周额度",
             usedPercent: 100 - remainingPercent,
@@ -54,7 +63,19 @@ function createHealthySnapshot(now: number, remainingPercent: number): QuotaSnap
         rateLimitReachedType: remainingPercent === 7 ? "primary" : null,
       },
     ],
-    bankedResets: null,
+    bankedResets: {
+      availableCount: 1,
+      details: [
+        {
+          resetType: "manual",
+          status: "available",
+          grantedAt: fetchedAt,
+          expiresAt: isoAfter(now, 9 * 24 * 60),
+          title: null,
+          description: null,
+        },
+      ],
+    },
     status: remainingPercent === 7 ? "quotaReached" : "ok",
     fetchedAt,
     lastGoodAt: fetchedAt,

@@ -106,6 +106,8 @@ jobs:
           releaseBody: |
             QuotaGlance 开源跨平台桌面软件安装包。
 
+            本版本在保留玻璃卡片与动态水面悬浮球界面的同时，补齐套餐、可选短周期/5 小时额度、周额度、可用重置机会与到期时间展示，并新增“登录时启动”。悬浮球继续以周额度驱动水位；可选字段只在 Codex App Server 实际返回时出现。
+
             请在页面下方的 Assets 中下载对应平台的软件：
             - Windows x64：NSIS `.exe` 或 MSI `.msi`
             - macOS Apple Silicon / Intel：`.dmg`
@@ -113,7 +115,12 @@ jobs:
 
             Release 同时提供 `SHA256SUMS.txt`，可用于核对下载文件完整性。
 
-            重要说明：本版本未附带 Codex App Server sidecar。运行前需单独安装并登录 Codex；Windows 会优先复用 Codex 桌面应用受管运行时，macOS/Linux 会查找 PATH 和常见用户安装目录中的 `codex`。Windows 安装包未进行 Authenticode 签名，macOS 仅使用 ad-hoc 签名且未公证，系统可能显示安全提醒。
+            重要说明：
+            - 本版本未附带或重新分发 Codex App Server sidecar。运行前需安装并登录包含 Codex 的 ChatGPT 桌面应用、旧版 Codex 桌面应用或 Codex CLI。
+            - Windows 会优先复用 Codex 桌面应用受管运行时；macOS 会优先检查 `/Applications` 或 `~/Applications` 下统一版 `ChatGPT.app`，再兼容旧版 `Codex.app`，最后回退到 PATH 和常见 CLI 目录；Linux 会检查 PATH 和常见 CLI 目录。
+            - macOS 应用内运行组件仍属于用户本机的外部安装：本版校验固定路径、普通文件、执行位与符号链接边界，但尚未验证 bundle identifier 或 OpenAI 代码签名身份。
+            - 额度只通过本机 `codex app-server` 的只读协议获取。QuotaGlance 不读取 `auth.json`、Token 或系统凭据库，不调用非公开 `wham` HTTP 接口，也不消耗重置机会。
+            - Windows 安装包未进行 Authenticode 签名，macOS 仅使用 ad-hoc 签名且未公证；macOS/Linux 尚未完成全部实机验收，系统可能显示安全提醒。
           releaseDraft: true
           prerelease: false
           generateReleaseNotes: true

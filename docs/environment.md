@@ -1,8 +1,8 @@
 # QuotaGlance 开发环境说明
 
-> 文档状态：`0.1.1` 工程基线
+> 文档状态：`0.1.4` 工程基线
 > 核对日期：2026-07-14
-> 当前阶段：M0/M1 实施  
+> 当前阶段：M0-M3 实施
 > 文档维护：maorongkang@gmail.com
 
 ## 1. 当前结论
@@ -10,13 +10,13 @@
 QuotaGlance 已建立 Tauri 2、Rust、React、TypeScript 与 Vite 工程。当前 Windows 10 开发机已完成以下验证：
 
 - `npm ci` 可安装锁定依赖；
-- 前端 lint、类型检查、15 项测试和生产构建通过；
-- Rust 45 项测试通过，其中包含 9 项假 App Server 跨进程契约，以及 Windows 受管运行时与跨平台 `PATH` 定位测试；
+- 前端 lint、类型检查、20 项测试和生产构建通过；
+- 当前 Windows 环境运行 45 项 Rust 测试并全部通过（36 项默认目标测试与 9 项假 App Server 跨进程契约测试），覆盖 App Server 协议/边界、运行时发现、偏好与服务状态；macOS 统一版/旧版应用固定路径及符号链接边界测试已加入平台条件测试；
 - Tauri debug `--no-bundle` 构建通过；
 - Tauri 原生浮球拖拽、双击切换、右键退出与进程回收烟测通过；
 - 浏览器模式的布局与交互 QA 通过。
 
-这些结果只说明 `0.1.1` 工程骨架在当前开发机可用，不代表正式发布条件已经满足。生产构建尚无 bundled Codex App Server sidecar；Windows 11、macOS 与 Linux 实机、安装器生命周期、代码签名和 macOS 公证均未完成验证。
+这些结果只说明 `0.1.4` 工程骨架在当前开发机可用，不代表正式发布条件已经满足。生产构建尚无 bundled Codex App Server sidecar；Windows 11、macOS 与 Linux 实机、安装器生命周期、平台代码签名和 macOS 公证均未完成验证。
 
 MVP 不使用 MySQL，也不启动本地 REST 服务。额度查询由 Rust 进程通过 `stdio` JSONL 与 Codex App Server 通信。
 
@@ -77,7 +77,7 @@ Vite 默认监听 `http://localhost:1420`。浏览器模式使用本地模拟数
 npm run tauri dev
 ```
 
-debug 模式会使用显式配置的 Codex 可执行文件，或尝试从 `PATH` 查找 `codex`。未找到合法可执行文件时，界面应显示受控错误，不能绕过系统权限或读取 Codex 桌面应用内部文件。
+debug 模式会使用显式配置的 Codex 可执行文件，或执行与 release 一致的受控运行时发现。未找到合法可执行文件时，界面显示受控错误，不能绕过系统权限、扫描私有缓存或读取凭据文件。
 
 ## 4. 构建与测试命令
 
@@ -95,17 +95,17 @@ npm run build
 npm run check
 ```
 
-当前记录：15 项前端测试通过，lint、类型检查和生产构建通过。
+当前记录：20 项前端测试通过，lint、类型检查和生产构建通过。
 
 ### 4.2 Rust
 
 ```powershell
 cargo fmt --manifest-path src-tauri/Cargo.toml --all -- --check
-cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features -- -D warnings
-cargo test --manifest-path src-tauri/Cargo.toml --all-targets --all-features
+cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
+cargo test --manifest-path src-tauri/Cargo.toml --all-targets
 ```
 
-当前记录：45 项 Rust 测试通过。`test-support` 特性只用于构建假 App Server 和跨进程契约，默认 Tauri 构建不会携带该测试程序。
+当前记录：Windows 环境使用 `--all-features` 运行 45 项 Rust 测试通过，其中 36 项属于默认目标测试，9 项属于假 App Server 跨进程契约。macOS 专属运行时发现测试只在 macOS 目标编译和执行，不能用当前 Windows 结果替代。`test-support` 特性只用于构建假 App Server 和跨进程契约，默认 Tauri 构建不会携带该测试程序。
 
 ### 4.3 Tauri debug 构建
 
@@ -146,7 +146,14 @@ npm run tauri dev
 - 不得把 WindowsApps 内部文件复制出来或修改其权限来绕过访问限制；
 - 路径可能包含个人信息，不应写入日志、提交记录或共享诊断材料。
 
-未设置时，Windows 构建会先查找 Codex 桌面应用在 `%LOCALAPPDATA%\OpenAI\Codex\bin\<managed-id>` 下管理的运行副本，再从 `PATH` 查找 `codex.exe`；macOS/Linux 会从 `PATH`、`/usr/local/bin`、`/opt/homebrew/bin`、`~/.local/bin` 和 `~/.npm-global/bin` 查找 `codex`。候选路径会规范化并校验为普通可执行文件。当前公开 Release 仍不包含 bundled sidecar，正式 `1.0.0` 前必须完成固定版本、来源、哈希、许可和签名方案。
+未设置时，Windows 构建会先查找 Codex 桌面应用在 `%LOCALAPPDATA%\OpenAI\Codex\bin\<managed-id>` 下管理的运行副本，再从 `PATH` 查找 `codex.exe`。macOS 先按应用名称优先级检查以下固定资源路径，再回退到 `PATH` 和常见 CLI 目录：
+
+- `/Applications/ChatGPT.app/Contents/Resources/codex`
+- `~/Applications/ChatGPT.app/Contents/Resources/codex`
+- `/Applications/Codex.app/Contents/Resources/codex`
+- `~/Applications/Codex.app/Contents/Resources/codex`
+
+其中统一版 `ChatGPT.app` 在系统级和用户级位置都优先于旧版 `Codex.app`。Linux 从 `PATH`、`/usr/local/bin`、`/opt/homebrew/bin`、`~/.local/bin` 和 `~/.npm-global/bin` 查找 `codex`。候选路径会规范化并校验为普通可执行文件；Unix 要求执行位，macOS 还会拒绝应用包或运行文件的符号链接逃逸。不会扫描名称相近的其他应用、私有缓存或临时目录。macOS 外部候选尚未验证 bundle identifier 与 OpenAI 签名身份；当前公开 Release 仍不包含 bundled sidecar，正式 `1.0.0` 前必须完成固定版本、来源、哈希、许可和签名方案。
 
 ### 6.2 其他非敏感变量
 
@@ -173,14 +180,14 @@ npm run tauri dev
 
 当前实现会启动并复用一个只读 `codex app-server` 会话：每个连接只完成一次初始化，后续通过 pending request map 读取账号状态和额度。协议限制、消息大小、乱序响应、迟到响应、通知、超时和错误映射已有自动化测试。
 
-仍待实施的能力包括：
+当前已实现 30 秒内存缓存、同类请求 SingleFlight、可见态 5 分钟/隐藏态 10 分钟安全重同步、失败保留最后成功快照，以及 App Server 异常后的退避恢复。仍待实施或验收的能力包括：
 
 - 随应用分发的受控 bundled sidecar；
-- 进程崩溃后的指数退避与自动重建；
-- 可见/隐藏定时安全重同步；
-- 崩溃重启、退避和兼容性检查；
+- 完整版本兼容矩阵、真实网络/睡眠恢复和长驻稳定性验收；
 - sidecar 固定版本、哈希、许可、签名和多架构产物；
-- Windows 11 与 macOS 实机联调。
+- Windows 11、macOS 与 Linux 实机联调。
+
+设置中的“登录时启动”使用平台启动项能力，不需要管理员/root 权限。切换时先修改系统启动项，再原子保存偏好；保存失败会回滚系统状态，避免界面与系统状态不一致。当前已通过编译与组件路径验证，macOS/Linux 的真实登录会话仍待实机验收。
 
 2026-07-13 已使用当前登录账号和 `codex-cli 0.144.0-alpha.4` 完成真实只读 POC，确认 ChatGPT Pro、两个动态额度桶、主/次窗口、Credits 和 banked reset 字段可读取。测试过程未读取或保存 `auth.json`、Token、Cookie、邮箱或账号 ID；具体额度值不写入文档，避免形成额度历史。
 
@@ -188,7 +195,7 @@ npm run tauri dev
 
 ## 9. macOS 待核对项
 
-当前没有真实 macOS 构建或运行证据。以下内容全部保持待验证：
+当前没有真实 macOS 实机运行证据。GitHub Runner 可提供构建产物，源码已加入统一 `ChatGPT.app` 和旧 `Codex.app` 的固定路径发现与条件测试，但以下内容全部保持待验证：
 
 | 待核对项 | 建议证据 |
 |---|---|
@@ -222,3 +229,4 @@ npm run tauri dev
 - [Tauri Windows 安装器](https://v2.tauri.app/distribute/windows-installer/)
 - [Codex App Server](https://developers.openai.com/codex/app-server)
 - [Codex 认证与凭据存储](https://developers.openai.com/codex/auth)
+- [ChatGPT 桌面应用整合 Codex 说明](https://help.openai.com/en/articles/20001276-moving-to-the-new-chatgpt-desktop-app)

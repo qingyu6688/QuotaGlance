@@ -1,13 +1,14 @@
 import { useRef } from "react";
 import type { KeyboardEvent, MouseEvent } from "react";
 import {
+  formatExpirationAt,
   formatFreshness,
   formatPercent,
   formatResetAt,
+  resolveQuotaPresentation,
   resolvePlanLabel,
   resolveQuotaTone,
-  selectWeeklyQuotaWindow,
-  WEEKLY_QUOTA_LABEL,
+  resolveQuotaWindowLabel,
 } from "../models/quota-view";
 import type {
   PendingActionName,
@@ -36,6 +37,7 @@ interface QuotaCardProps {
   onRefresh: () => void;
   onToggleAlwaysOnTop: () => void;
   onToggleClickThrough: () => void;
+  onToggleLaunchAtLogin: () => void;
   onChangeMode: (mode: WidgetMode) => void;
   onChangeTheme: (theme: Theme) => void;
 }
@@ -69,8 +71,8 @@ const STATUS_MESSAGES: Readonly<
     description: "服务恢复后可重新读取，不会显示虚假额度。",
   },
   appServerUnavailable: {
-    title: "未找到 Codex App Server",
-    description: "请确认已安装兼容版本的 Codex。",
+    title: "未找到可用的 Codex",
+    description: "请安装或更新 ChatGPT 桌面应用（包含 Codex），或安装 Codex CLI 后重新读取。",
   },
   incompatible: {
     title: "当前 Codex 版本不兼容",
@@ -79,8 +81,8 @@ const STATUS_MESSAGES: Readonly<
 };
 
 const FALLBACK_EMPTY_MESSAGE = {
-  title: "暂无周额度",
-  description: "这次读取没有返回可展示的周额度，请稍后重新读取。",
+  title: "暂无可用额度",
+  description: "这次读取没有返回可展示的短周期或周额度，请稍后重新读取。",
 };
 
 function isEmptyQuotaStatus(status: QuotaStatus): status is EmptyQuotaStatus {
@@ -91,32 +93,69 @@ interface QuotaWindowViewProps {
   quotaWindow: QuotaWindow;
   snapshot: QuotaSnapshot;
   preferences: Preferences;
+  primaryWindow: QuotaWindow | null;
+  resetCreditCount: number | null;
+  resetCreditExpirations: string[];
 }
 
 function QuotaWindowView({
   quotaWindow,
   snapshot,
   preferences,
+  primaryWindow,
+  resetCreditCount,
+  resetCreditExpirations,
 }: QuotaWindowViewProps) {
   const tone = resolveQuotaTone(snapshot.status, quotaWindow.remainingPercent, preferences);
+  const quotaLabel = resolveQuotaWindowLabel(quotaWindow);
 
   return (
     <section
-      aria-labelledby="weekly-quota-heading"
+      aria-labelledby="primary-quota-heading"
       className="quota-window quota-window--primary"
       data-tone={tone}
     >
-      <h2 id="weekly-quota-heading">
+      <h2 id="primary-quota-heading">
         <Icon name="calendar" size={19} />
-        {WEEKLY_QUOTA_LABEL}
+        {quotaLabel}
       </h2>
       <p className="quota-window__remaining-label">剩余</p>
       <p className="quota-window__percent" aria-label={formatPercent(quotaWindow.remainingPercent)}>
         <strong>{quotaWindow.remainingPercent}</strong>
         <span>%</span>
       </p>
-      <ProgressBar label={WEEKLY_QUOTA_LABEL} tone={tone} value={quotaWindow.remainingPercent} />
+      <ProgressBar label={quotaLabel} tone={tone} value={quotaWindow.remainingPercent} />
       <p className="quota-window__reset">{formatResetAt(quotaWindow.resetsAt)}</p>
+      {primaryWindow !== null || resetCreditCount !== null ? (
+        <div className="quota-window__reference-details">
+          {primaryWindow !== null ? (
+            <div className="quota-window__detail" data-testid="short-term-quota">
+              <span>{resolveQuotaWindowLabel(primaryWindow)}</span>
+              <strong>{primaryWindow.remainingPercent}%</strong>
+              <small>{formatResetAt(primaryWindow.resetsAt)}</small>
+            </div>
+          ) : null}
+          {resetCreditCount !== null ? (
+            <details className="quota-window__credits">
+              <summary>
+                <span>重置机会</span>
+                <strong>{resetCreditCount} 次</strong>
+              </summary>
+              <div className="quota-window__credit-popover">
+                {resetCreditExpirations.length > 0 ? (
+                  resetCreditExpirations.map((expiration, index) => (
+                    <p key={expiration}>
+                      第 {index + 1} 次：{formatExpirationAt(expiration)}
+                    </p>
+                  ))
+                ) : (
+                  <p>当前只返回数量，未返回到期时间。</p>
+                )}
+              </div>
+            </details>
+          ) : null}
+        </div>
+      ) : null}
     </section>
   );
 }
@@ -174,11 +213,15 @@ export function QuotaCard({
   onRefresh,
   onToggleAlwaysOnTop,
   onToggleClickThrough,
+  onToggleLaunchAtLogin,
   onChangeMode,
   onChangeTheme,
 }: QuotaCardProps) {
   const settingsButtonRef = useRef<HTMLButtonElement>(null);
-  const selectedWindow = selectWeeklyQuotaWindow(snapshot, preferences.widget.selectedQuota);
+  const presentation = resolveQuotaPresentation(snapshot, preferences.widget.selectedQuota);
+  const selectedWindow = presentation.weeklyWindow ?? presentation.primaryWindow;
+  const shortTermDetail =
+    presentation.weeklyWindow !== null ? presentation.primaryWindow : null;
   const refreshing = refreshState.phase === "refreshing" || pendingAction === "refresh";
   const refreshDisabled = refreshing || refreshState.phase === "cooldown";
   const hasReadings =
@@ -263,8 +306,11 @@ export function QuotaCard({
         {snapshot.status === "loading" ? <QuotaLoading /> : null}
         {hasReadings ? (
           <QuotaWindowView
+            primaryWindow={shortTermDetail}
             preferences={preferences}
             quotaWindow={selectedWindow}
+            resetCreditCount={presentation.resetCreditCount}
+            resetCreditExpirations={presentation.resetCreditExpirations}
             snapshot={snapshot}
           />
         ) : null}
@@ -285,6 +331,7 @@ export function QuotaCard({
           onClose={closeSettings}
           onToggleAlwaysOnTop={onToggleAlwaysOnTop}
           onToggleClickThrough={onToggleClickThrough}
+          onToggleLaunchAtLogin={onToggleLaunchAtLogin}
           pendingAction={pendingAction}
           preferences={preferences}
           windowState={windowState}

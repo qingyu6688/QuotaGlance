@@ -18,6 +18,7 @@ interface SettingsPanelProps {
   onChangeTheme: (theme: Theme) => void;
   onToggleAlwaysOnTop: () => void;
   onToggleClickThrough: () => void;
+  onToggleLaunchAtLogin: () => void;
 }
 
 interface SwitchRowProps {
@@ -61,6 +62,7 @@ export function SettingsPanel({
   onChangeTheme,
   onToggleAlwaysOnTop,
   onToggleClickThrough,
+  onToggleLaunchAtLogin,
 }: SettingsPanelProps) {
   return (
     <section
@@ -120,6 +122,14 @@ export function SettingsPanel({
         icon="mouse"
         label="鼠标穿透"
         onChange={onToggleClickThrough}
+      />
+      <SwitchRow
+        checked={preferences.startup.launchAtLogin}
+        description="登录系统后自动启动 QuotaGlance"
+        disabled={pendingAction === "startup"}
+        icon="power"
+        label="登录时启动"
+        onChange={onToggleLaunchAtLogin}
       />
 
     </section>

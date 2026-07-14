@@ -3,7 +3,7 @@
 > 文档状态：目标接口基线；`0.1.x` 已实现首批 IPC 与事件
 > 目标版本：`1.0.0`  
 > IPC Schema：`1`  
-> 最后更新：2026-07-13  
+> 最后更新：2026-07-14
 > 维护联系：`maorongkang@gmail.com`
 
 ## 1. 文档范围
@@ -19,10 +19,10 @@
 
 - 已实现动态 Rust 额度领域模型、严格 JSONL 校验、只读常驻 Codex App Server 会话与 pending request map，并具备基础刷新状态和 React UI。
 - 已通过仅测试特性构建的假 App Server 执行跨进程契约，验证单次握手、乱序响应匹配、通知转发、迟到响应忽略、未知请求拒绝、错误脱敏、畸形输出、超时回收、异常退出和消息上限。
-- 当前已实现 9 个 IPC：`get_quota_snapshot`、`refresh_quota`、`get_app_server_status`、`get_preferences`、`set_theme`、`set_widget_mode`、`set_always_on_top`、`set_click_through`、`quit_app`。
+- 当前已实现 10 个 IPC：`get_quota_snapshot`、`refresh_quota`、`get_app_server_status`、`get_preferences`、`set_theme`、`set_widget_mode`、`set_always_on_top`、`set_click_through`、`set_launch_at_login`、`quit_app`。
 - 当前已发出 6 类状态事件：`quota://snapshot-updated`、`quota://refresh-state-changed`、`quota://auth-state-changed`、`quota://app-server-state-changed`、`preferences://changed`、`window://state-changed`。React UI 当前消费其中的快照、刷新、偏好和窗口事件。
 - 窗口与托盘功能已接入；窗口模式、置顶和穿透偏好已写入应用配置目录并支持备份恢复。
-- 常驻 App Server、通知驱动完整重读、30 秒自动刷新缓存、SingleFlight、最后成功快照、可见/隐藏重同步、退避和主题偏好保存已经实现；语言、开机启动、更新器以及 sidecar 生产分发尚未完成。
+- 常驻 App Server、通知驱动完整重读、30 秒自动刷新缓存、SingleFlight、最后成功快照、可见/隐藏重同步、退避、主题偏好保存和登录时启动已经实现；语言、更新器以及 sidecar 生产分发尚未完成。
 
 ## 2. 接口原则
 
@@ -71,7 +71,7 @@ export interface AuthSummary {
   requiresOpenaiAuth: boolean | null;
 }
 
-export type QuotaSource = "appServer" | "legacyCompat";
+export type QuotaSource = "appServer";
 export type WindowSlot = "primary" | "secondary" | "other";
 export type WindowKind = "shortTerm" | "weekly" | "monthly" | "unknown";
 
@@ -128,7 +128,7 @@ export interface QuotaSnapshot {
   schemaVersion: 1;
   revision: number;
   source: QuotaSource | null;
-  provider: "codexAppServer" | "legacyWham" | null;
+  provider: "codexAppServer" | null;
   auth: AuthSummary;
   buckets: QuotaBucket[];
   bankedResets: ResetCreditSummary | null;
@@ -372,6 +372,7 @@ export type ErrorCode =
   | "PREFERENCES_CORRUPTED"
   | "PREFERENCES_VERSION_UNSUPPORTED"
   | "PREFERENCES_WRITE_FAILED"
+  | "STARTUP_OPERATION_FAILED"
   | "WINDOW_OPERATION_FAILED"
   | "UPDATE_CHECK_FAILED"
   | "UPDATE_SIGNATURE_INVALID"
@@ -384,7 +385,7 @@ export type ErrorCode =
 | `FORBIDDEN` | 否 | 当前窗口没有命令权限 |
 | `NOT_READY` | 是 | 服务尚在启动且该命令不能立即完成 |
 | `SHUTTING_DOWN` | 否 | 应用正在退出，不再受理写入或刷新 |
-| `APP_SERVER_NOT_FOUND` | 是 | 无随包 sidecar，且没有有效外部 CLI |
+| `APP_SERVER_NOT_FOUND` | 是 | 未找到随包 sidecar、受支持的桌面应用运行组件或有效外部 CLI |
 | `APP_SERVER_EXECUTION_DENIED` | 是 | 文件不可执行、被系统策略拒绝或架构不匹配 |
 | `APP_SERVER_VERSION_INCOMPATIBLE` | 否 | 版本不在应用兼容范围 |
 | `APP_SERVER_HANDSHAKE_TIMEOUT` | 是 | 初始化握手超时 |
@@ -404,6 +405,7 @@ export type ErrorCode =
 | `PREFERENCES_CORRUPTED` | 否 | 当前偏好不可读，已使用备份或默认值 |
 | `PREFERENCES_VERSION_UNSUPPORTED` | 否 | 文件来自未来 Schema，旧应用不覆盖 |
 | `PREFERENCES_WRITE_FAILED` | 是 | 临时写、同步、备份或原子替换失败 |
+| `STARTUP_OPERATION_FAILED` | 是 | 系统登录项读取、启用、禁用或失败回滚未完成 |
 | `WINDOW_OPERATION_FAILED` | 是 | 操作系统窗口 API 调用失败 |
 | `UPDATE_*` | 视情况 | 更新检查、签名或安装失败 |
 
@@ -418,7 +420,7 @@ export type ErrorCode =
 | Command | 输入 | 输出 | 副作用 | 0.1.x 状态 |
 |---|---|---|---|---|
 | `get_quota_snapshot` | 无 | `QuotaSnapshot` | 无；首次调用可确保后台启动流程已安排 | 已实现 |
-| `refresh_quota` | 无 | `RefreshReceipt` | 受理一次手动刷新；完整 SingleFlight/退避仍待实现 | 已实现（基础语义） |
+| `refresh_quota` | 无 | `RefreshReceipt` | 受理一次手动刷新并遵循缓存、SingleFlight 与退避策略 | 已实现 |
 | `get_app_server_status` | 无 | `AppServerStatus` | 无 | 已实现 |
 | `get_preferences` | 无 | `PreferencesEnvelope` | 读取已加载并经过损坏恢复的本地偏好 | 已实现 |
 | `set_theme` | theme | `PreferencesEnvelope` | 原子保存主题并广播 `preferences://changed` | 已实现 |
@@ -426,6 +428,7 @@ export type ErrorCode =
 | `set_widget_mode` | mode | `WindowState` | 显示、展开或隐藏窗口，并原子保存偏好 | 已实现 |
 | `set_always_on_top` | enabled | `WindowState` | 修改平台窗口，并原子保存偏好 | 已实现 |
 | `set_click_through` | enabled | `WindowState` | 修改鼠标穿透，并原子保存偏好 | 已实现 |
+| `set_launch_at_login` | enabled | `PreferencesEnvelope` | 修改系统登录项并与本地偏好事务同步 | 已实现 |
 | `quit_app` | 无 | `void` | 结束 QuotaGlance，应用生命周期钩子负责回收 App Server 子进程 | 已实现 |
 | `check_for_updates` | 无 | `UpdateStatus` | 执行一次签名更新检查 | 目标契约 |
 | `install_update` | expectedVersion | `UpdateStatus` | 下载/安装已验证更新，可能重启应用 | 目标契约 |
@@ -513,7 +516,7 @@ invoke<PreferencesEnvelope>("set_theme", {
 });
 ```
 
-输入只能是 `system`、`aurora`、`graphite` 或 `paper`。读取历史偏好时，旧值 `light`、`dark` 分别按 `aurora`、`graphite` 兼容。命令在偏好文件原子写入成功后更新内存状态、递增 revision，并向 `widget` 窗口广播 `preferences://changed`；写入失败时保留旧偏好并返回受控错误。
+输入只能是 `system`、`aurora`、`graphite`、`paper`、`sunset`、`honey` 或 `rose`。读取历史偏好时，旧值 `light`、`dark` 分别按 `aurora`、`graphite` 兼容。命令在偏好文件原子写入成功后更新内存状态、递增 revision，并向 `widget` 窗口广播 `preferences://changed`；写入失败时保留旧偏好并返回受控错误。
 
 ### 5.7 `save_preferences`
 
@@ -543,7 +546,7 @@ interface SavePreferencesRequest {
 
 Patch 是受控深层合并对象，不是 RFC 6902 JSON Patch。未知字段一律返回 `INVALID_ARGUMENT`。保存成功后返回新的完整偏好，revision 增加 1。
 
-修改 `launchAtLogin` 时先执行平台设置，成功后再落盘；平台失败则偏好不变。与窗口直接相关的字段建议使用对应 `set_*` 命令，避免平台状态与文件状态分离。
+`launchAtLogin` 由专用 `set_launch_at_login` 命令维护，不接受通用 Patch 修改。与窗口直接相关的字段同样使用对应 `set_*` 命令，避免平台状态与文件状态分离。
 
 ### 5.8 `set_widget_mode`
 
@@ -581,7 +584,17 @@ interface SetClickThroughRequest {
 
 启用后，托盘必须保留后端直接调用的“解除穿透并显示”恢复入口。设置失败时返回旧 `WindowState` 对应的错误，不写入偏好。
 
-### 5.11 `quit_app`
+### 5.11 `set_launch_at_login`
+
+调用：
+
+```ts
+invoke<PreferencesEnvelope>("set_launch_at_login", { enabled: true });
+```
+
+命令在同一串行临界区内读取平台登录项、执行变更并原子保存偏好。平台操作失败时不修改偏好；偏好保存失败时回滚平台状态；回滚失败返回 `STARTUP_OPERATION_FAILED`，不得伪装成功。应用启动时以平台实际状态覆盖内存中的 `launchAtLogin`，运行期间用户直接在系统设置中改动登录项则在下次启动或应用内切换时重新对账。
+
+### 5.12 `quit_app`
 
 调用：
 
@@ -591,7 +604,7 @@ invoke<void>("quit_app");
 
 输入：无。该命令只用于浮球右键菜单中的明确“退出”动作，不处理账号登出，也不修改 Codex 登录态。应用退出时由既有生命周期清理逻辑关闭常驻 App Server 会话并回收子进程。
 
-### 5.12 `check_for_updates`
+### 5.13 `check_for_updates`
 
 调用：
 
@@ -601,7 +614,7 @@ invoke<UpdateStatus>("check_for_updates");
 
 只使用固定 HTTPS 更新源和 Tauri updater 签名校验。前端不能传更新 URL、通道或公钥。自动检查由后端调度，不通过伪造 IPC 参数触发。
 
-### 5.13 `install_update`
+### 5.14 `install_update`
 
 输入：
 
@@ -639,7 +652,7 @@ interface InstallUpdateRequest {
 
 ## 7. Capability 与权限
 
-窗口标签固定为 `widget` 和 `settings`。Tauri Capability 只授权必要命令：
+`0.1.4` 当前只有 `widget` 窗口，设置面板也在该 WebView 内；注册的 10 个业务命令均由此窗口调用。下表保留未来拆分独立 `settings` 窗口时的目标权限矩阵，当前实现不能据此声称已经完成按窗口隔离：
 
 | Command | `widget` | `settings` | 后端内部/托盘 |
 |---|:---:|:---:|:---:|
@@ -652,11 +665,12 @@ interface InstallUpdateRequest {
 | `set_widget_mode` | 允许 | 允许 | 允许 |
 | `set_always_on_top` | 允许 | 允许 | 允许 |
 | `set_click_through` | 允许 | 允许 | 允许 |
+| `set_launch_at_login` | 允许 | 允许 | 允许 |
 | `quit_app` | 允许 | 禁止 | 允许 |
 | `check_for_updates` | 禁止 | 允许 | 允许 |
 | `install_update` | 禁止 | 允许 | 允许 |
 
-除 Capability 外，Rust Command 还要核对调用窗口标签，不能把前端传入的字符串当作调用者身份。
+拆分独立设置窗口前，必须同时补齐自定义 Command 的窗口级 ACL 或 Rust 调用方标签校验，不能只新增窗口后沿用全局注册命令，也不能把前端传入的字符串当作调用者身份。
 
 浮球右键菜单使用 Tauri 原生菜单模块，Capability 仅开放创建菜单与在当前鼠标位置弹出菜单所需的 `core:menu:allow-new`、`core:menu:allow-popup`，不开放完整菜单默认权限。菜单内容固定在前端 API 封装中，只包含“设置”和“退出”。
 

@@ -16,7 +16,14 @@ import type {
   WindowState,
 } from "../types/quota";
 
-type PendingAction = "refresh" | "mode" | "pin" | "clickThrough" | "theme" | null;
+type PendingAction =
+  | "refresh"
+  | "mode"
+  | "pin"
+  | "clickThrough"
+  | "theme"
+  | "startup"
+  | null;
 
 interface QuotaGlanceController {
   snapshot: QuotaSnapshot;
@@ -30,6 +37,7 @@ interface QuotaGlanceController {
   setMode(mode: WidgetMode): Promise<void>;
   toggleAlwaysOnTop(): Promise<void>;
   toggleClickThrough(): Promise<void>;
+  toggleLaunchAtLogin(): Promise<void>;
   quit(): Promise<void>;
 }
 
@@ -40,8 +48,8 @@ function localizedError(error: unknown): string {
 
   const messages: Partial<Record<typeof error.code, string>> = {
     REFRESH_COOLDOWN: "刷新过于频繁，请稍后再试",
-    APP_SERVER_NOT_FOUND: "未找到 Codex App Server",
-    APP_SERVER_EXECUTION_DENIED: "Codex App Server 无法启动",
+    APP_SERVER_NOT_FOUND: "未找到可用的 Codex，请安装 ChatGPT 桌面应用或 Codex CLI",
+    APP_SERVER_EXECUTION_DENIED: "Codex 运行组件无法启动，请检查安装来源与系统权限",
     APP_SERVER_VERSION_INCOMPATIBLE: "当前 Codex 版本不兼容",
     AUTH_REQUIRED: "请先登录 Codex",
     API_KEY_MODE: "API Key 模式不提供订阅额度",
@@ -51,6 +59,7 @@ function localizedError(error: unknown): string {
     PREFERENCES_WRITE_FAILED: "设置已应用，但保存失败，请检查配置目录权限",
     PREFERENCES_CORRUPTED: "设置文件已损坏，当前使用安全默认值",
     PREFERENCES_VERSION_UNSUPPORTED: "设置来自更高版本，已停止写入以保护原文件",
+    STARTUP_OPERATION_FAILED: "开机启动设置没有生效，请检查系统登录项权限",
     FORBIDDEN: "当前窗口没有执行此操作的权限",
   };
   return messages[error.code] ?? "操作没有完成，请稍后重试";
@@ -249,6 +258,25 @@ export function useQuotaGlance(): QuotaGlanceController {
     }
   }, [pendingAction, windowState.clickThrough]);
 
+  const toggleLaunchAtLogin = useCallback(async (): Promise<void> => {
+    if (pendingAction === "startup") {
+      return;
+    }
+
+    setPendingAction("startup");
+    const enabled = !preferencesEnvelope.preferences.startup.launchAtLogin;
+    setFeedback(enabled ? "正在开启登录时启动…" : "正在关闭登录时启动…");
+    try {
+      const next = await quotaGlanceApi.setLaunchAtLogin(enabled);
+      setPreferencesEnvelope((current) => mergePreferences(current, next));
+      setFeedback(enabled ? "已开启登录时启动" : "已关闭登录时启动");
+    } catch (error: unknown) {
+      setFeedback(localizedError(error));
+    } finally {
+      setPendingAction(null);
+    }
+  }, [pendingAction, preferencesEnvelope.preferences.startup.launchAtLogin]);
+
   const quit = useCallback(async (): Promise<void> => {
     setFeedback("正在退出…");
     try {
@@ -270,6 +298,7 @@ export function useQuotaGlance(): QuotaGlanceController {
     setTheme,
     toggleAlwaysOnTop,
     toggleClickThrough,
+    toggleLaunchAtLogin,
     quit,
   };
 }

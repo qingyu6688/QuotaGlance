@@ -29,11 +29,11 @@ export const INITIAL_PREFERENCES: PreferencesEnvelope = {
   preferences: {
     schemaVersion: 1,
     revision: 0,
-    locale: "system",
+    locale: "zh-CN",
     theme: "system",
     widget: {
       mode: "card",
-      alwaysOnTop: false,
+      alwaysOnTop: true,
       clickThrough: false,
       selectedQuota: {
         limitId: null,
@@ -45,10 +45,10 @@ export const INITIAL_PREFERENCES: PreferencesEnvelope = {
       },
     },
     notifications: {
-      enabled: true,
-      warningRemainingPercent: 25,
+      enabled: false,
+      warningRemainingPercent: 50,
       criticalRemainingPercent: 10,
-      notifyWhenRecovered: true,
+      notifyWhenRecovered: false,
     },
     startup: {
       launchAtLogin: false,
@@ -66,7 +66,7 @@ export const INITIAL_WINDOW_STATE: WindowState = {
   revision: 0,
   mode: "card",
   visible: true,
-  alwaysOnTop: false,
+  alwaysOnTop: true,
   clickThrough: false,
   bounds: null,
 };

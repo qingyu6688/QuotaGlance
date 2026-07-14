@@ -30,6 +30,7 @@ pub enum ErrorCode {
     PreferencesCorrupted,
     PreferencesVersionUnsupported,
     PreferencesWriteFailed,
+    StartupOperationFailed,
     WindowOperationFailed,
     UpdateCheckFailed,
     UpdateSignatureInvalid,

@@ -2,14 +2,14 @@
 
 > 文档状态：发布方案初稿  
 > 核对日期：2026-07-14
-> 当前阶段：0.1.1 跨平台 prerelease；不能作为正式稳定版发布
+> 当前阶段：0.1.4 跨平台社区预览；不能作为正式稳定版发布
 > 文档维护：maorongkang@gmail.com
 
 ## 1. 当前状态
 
-仓库当前已有 Tauri 2、React/TypeScript 工程、前后端锁文件、严格检查脚本和跨平台 CI。`0.1.1` 通过 Git 标签触发 GitHub Actions，在原生 Runner 上构建 Windows x64、macOS Apple Silicon、macOS Intel、Linux x64 和 Linux ARM64 安装包，并在全部任务成功后上传 SHA-256 清单、公开为 GitHub prerelease。当前产物不包含可合法再分发的 production sidecar，也未完成 Windows 11 安装/升级/卸载、更新器、平台签名、公证或全平台实机验收，因此不能据此声称已有正式稳定版。
+仓库当前已有 Tauri 2、React/TypeScript 工程、前后端锁文件、严格检查脚本和跨平台 CI。`0.1.4` 通过 Git 标签触发 GitHub Actions，在原生 Runner 上构建 Windows x64、macOS Apple Silicon、macOS Intel、Linux x64 和 Linux ARM64 安装包，并在全部任务成功后上传 SHA-256 清单、公开为 Latest 社区预览 Release。当前产物不包含可合法再分发的 production sidecar，也未完成 Windows 11 安装/升级/卸载、更新器、平台签名、公证或全平台实机验收，因此不能据此声称已有正式稳定版。
 
-公开预览版由 `.github/workflows/release.yml` 管理：先校验 npm、Cargo、Tauri、锁文件与标签版本一致，并拒绝覆盖已公开版本；随后创建草稿 Release，各平台分别上传原生安装包。矩阵全部成功后，工作流确认恰好存在 8 个非空安装资产，生成不含自身的 `SHA256SUMS.txt`，执行 `sha256sum --check` 后才公开 prerelease。任一检查失败时 Release 保持草稿，避免向用户展示不完整资产。Pull Request 不持有写入 Release 的权限。
+公开预览版由 `.github/workflows/release.yml` 管理：先校验 npm、Cargo、Tauri、锁文件与标签版本一致，并拒绝覆盖已公开版本；随后创建草稿 Release，各平台分别上传原生安装包。矩阵全部成功后，工作流确认恰好存在 8 个非空安装资产，生成不含自身的 `SHA256SUMS.txt`，执行 `sha256sum --check` 后才以 `prerelease=false` 公开为 Latest 社区预览 Release。任一检查失败时 Release 保持草稿，避免向用户展示不完整资产。Pull Request 不持有写入 Release 的权限。
 
 正式发布必须由受控 CI 或专用构建机完成。本地开发包只用于调试，不得作为公开下载提供。
 
@@ -32,6 +32,7 @@ npm run tauri -- build --debug --no-bundle
 | Windows | Windows 11 x64 | 已签名 NSIS `setup.exe` | 已签名 MSI，供企业部署评估 |
 | Windows 10 | 22H2 且仍获 ESU 的设备 | 尽力兼容，不单独承诺 | 在测试报告中明确结果 |
 | macOS | macOS 13+，Intel 与 Apple Silicon | 已签名、公证并 stapling 的 DMG | Universal 优先；必要时分架构 DMG |
+| Linux | 主流 x64 / ARM64 桌面发行版 | AppImage 与 DEB 社区预览 | 发行版兼容范围以实机测试报告为准 |
 
 Windows ARM64 计划在 1.1.x 评估，不得把未实测产物列为 1.0 正式支持。macOS 的 Universal 构建必须在 macOS 构建机或 macOS CI runner 上完成。
 
@@ -108,7 +109,18 @@ CI 在打包前必须完成：
 
 任意一步失败都应停止构建，不允许退回 PATH 中的任意 `codex` 继续发布。
 
-### 4.3 运行时约束
+### 4.3 0.1.4 社区预览的运行时发现顺序
+
+`0.1.4` 不携带或重新分发 Codex App Server sidecar，只复用用户本机已经安装的外部运行组件。Release 构建的顺序固定如下：
+
+- Windows：`%LOCALAPPDATA%/OpenAI/Codex/bin/<runtime>/codex.exe` 中修改时间最新且仍位于受管根目录的普通文件，然后是 `PATH` 中首个可执行 `codex.exe`。
+- macOS：`/Applications/ChatGPT.app/Contents/Resources/codex`、`~/Applications/ChatGPT.app/Contents/Resources/codex`、`/Applications/Codex.app/Contents/Resources/codex`、`~/Applications/Codex.app/Contents/Resources/codex`，随后是 `PATH`、`/usr/local/bin/codex`、`/opt/homebrew/bin/codex`、`~/.local/bin/codex`、`~/.npm-global/bin/codex`。
+- Linux：`PATH` 中首个可执行 `codex`，随后是 `/usr/local/bin/codex`、`/opt/homebrew/bin/codex`、`~/.local/bin/codex`、`~/.npm-global/bin/codex`。
+- debug 构建额外允许 `QUOTAGLANCE_CODEX_PATH` 指定绝对路径；该入口不属于 Release 默认配置。
+
+所有候选都先规范化并检查普通文件；Unix 还检查执行位。macOS 固定应用包候选额外拒绝应用包或最终二进制的符号链接，并确认规范化结果没有逃出应用包和 Applications 根目录。当前版本尚未验证外部候选的 bundle identifier、OpenAI 代码签名身份或完整版本兼容范围，因此不能把它们描述为 QuotaGlance 随包提供的可信 sidecar。
+
+### 4.4 1.0 bundled sidecar 目标约束
 
 - 默认只从应用资源目录中的固定位置启动 sidecar；
 - 参数固定为 `app-server`，使用默认 `stdio` JSONL；
@@ -312,7 +324,7 @@ Tauri 的静态更新 JSON 中，`signature` 必须是 `.sig` 文件内容，而
 
 ### 10.1 开发预览产物同步规则
 
-在项目进入正式版本发布前，工作区内每次代码、样式、配置或正式文档修改完成后，都必须同步更新 `release/QuotaGlance-0.1.1-windows-x64-preview/`：
+需要生成本地 Windows 开发预览时，目录统一使用 `release/QuotaGlance-<version>-windows-x64-preview/`，不得继续覆盖已经公开的旧版本目录。每次代码、样式、配置或正式文档修改完成后，当前版本预览应执行：
 
 1. 运行前端检查和生产构建；
 2. 重新执行 Tauri Release 构建；

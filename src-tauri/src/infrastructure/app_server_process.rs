@@ -10,6 +10,8 @@ use std::{
 
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
+#[cfg(target_os = "macos")]
+use std::path::Path;
 #[cfg(target_os = "windows")]
 use std::{path::Path, time::SystemTime};
 
@@ -204,10 +206,11 @@ async fn run_app_server_probe_with_candidate(
 pub(super) fn locate_candidate() -> Result<Candidate, ProbeError> {
     #[cfg(debug_assertions)]
     if let Some(configured) = env::var_os("QUOTAGLANCE_CODEX_PATH") {
-        let program = PathBuf::from(configured);
-        if !program.is_absolute() || !program.is_file() {
+        let configured = PathBuf::from(configured);
+        if !configured.is_absolute() {
             return Err(ProbeError::NotFound);
         }
+        let program = canonical_executable(configured).ok_or(ProbeError::NotFound)?;
         return Ok(Candidate {
             program,
             source: AppServerSource::External,
@@ -217,6 +220,15 @@ pub(super) fn locate_candidate() -> Result<Candidate, ProbeError> {
 
     #[cfg(target_os = "windows")]
     if let Some(program) = locate_managed_codex_desktop_runtime() {
+        return Ok(Candidate {
+            program,
+            source: AppServerSource::External,
+            arguments: Vec::new(),
+        });
+    }
+
+    #[cfg(target_os = "macos")]
+    if let Some(program) = locate_macos_desktop_runtime() {
         return Ok(Candidate {
             program,
             source: AppServerSource::External,
@@ -292,6 +304,75 @@ fn canonical_executable(candidate: PathBuf) -> Option<PathBuf> {
     }
 
     Some(canonical)
+}
+
+#[cfg(target_os = "macos")]
+const MACOS_CODEX_BUNDLES: [&str; 2] = ["ChatGPT.app", "Codex.app"];
+
+#[cfg(target_os = "macos")]
+const MACOS_CODEX_RELATIVE_PATH: &str = "Contents/Resources/codex";
+
+#[cfg(target_os = "macos")]
+fn locate_macos_desktop_runtime() -> Option<PathBuf> {
+    let mut application_roots = vec![PathBuf::from("/Applications")];
+    if let Some(home) = env::var_os("HOME") {
+        application_roots.push(PathBuf::from(home).join("Applications"));
+    }
+    find_macos_desktop_runtime_in_roots(&application_roots)
+}
+
+#[cfg(target_os = "macos")]
+fn find_macos_desktop_runtime(applications_root: &Path) -> Option<PathBuf> {
+    find_macos_desktop_runtime_in_roots(&[applications_root.to_path_buf()])
+}
+
+#[cfg(target_os = "macos")]
+fn find_macos_desktop_runtime_in_roots(applications_roots: &[PathBuf]) -> Option<PathBuf> {
+    let roots = applications_roots
+        .iter()
+        .filter_map(|root| {
+            fs::canonicalize(root)
+                .ok()
+                .map(|canonical| (root, canonical))
+        })
+        .collect::<Vec<_>>();
+
+    MACOS_CODEX_BUNDLES.iter().find_map(|bundle_name| {
+        roots.iter().find_map(|(root, canonical_root)| {
+            validate_macos_bundle_runtime(canonical_root, &root.join(bundle_name))
+        })
+    })
+}
+
+#[cfg(target_os = "macos")]
+fn validate_macos_bundle_runtime(
+    canonical_applications_root: &Path,
+    bundle: &Path,
+) -> Option<PathBuf> {
+    let bundle_metadata = fs::symlink_metadata(bundle).ok()?;
+    if bundle_metadata.file_type().is_symlink() || !bundle_metadata.is_dir() {
+        return None;
+    }
+
+    let canonical_bundle = fs::canonicalize(bundle).ok()?;
+    if !canonical_bundle.starts_with(canonical_applications_root) {
+        return None;
+    }
+
+    let candidate = bundle.join(MACOS_CODEX_RELATIVE_PATH);
+    let candidate_metadata = fs::symlink_metadata(&candidate).ok()?;
+    if candidate_metadata.file_type().is_symlink() || !candidate_metadata.is_file() {
+        return None;
+    }
+
+    let canonical_candidate = canonical_executable(candidate)?;
+    if !canonical_candidate.starts_with(&canonical_bundle)
+        || !canonical_candidate.starts_with(canonical_applications_root)
+    {
+        return None;
+    }
+
+    Some(canonical_candidate)
 }
 
 #[cfg(unix)]
@@ -533,14 +614,20 @@ mod tests {
         time::{SystemTime, UNIX_EPOCH},
     };
 
+    #[cfg(target_os = "macos")]
+    use std::os::unix::fs::symlink;
     #[cfg(unix)]
     use std::os::unix::fs::PermissionsExt;
+    #[cfg(target_os = "macos")]
+    use std::path::PathBuf;
 
     use tokio::io::{duplex, AsyncWriteExt, BufReader};
 
     #[cfg(target_os = "windows")]
     use super::find_latest_managed_codex;
     use super::{codex_executable_name, find_codex_in_search_path, read_limited_line, ProbeError};
+    #[cfg(target_os = "macos")]
+    use super::{find_macos_desktop_runtime, find_macos_desktop_runtime_in_roots};
     use crate::providers::app_server_protocol::MAX_MESSAGE_BYTES;
 
     #[tokio::test]
@@ -613,6 +700,144 @@ mod tests {
             .and_then(|path| find_codex_in_search_path(&path));
 
         assert_eq!(located, fs::canonicalize(&expected).ok());
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[cfg(target_os = "macos")]
+    fn create_macos_runtime(applications: &std::path::Path, bundle_name: &str) -> PathBuf {
+        let candidate = applications
+            .join(bundle_name)
+            .join("Contents")
+            .join("Resources")
+            .join("codex");
+        assert!(candidate
+            .parent()
+            .is_some_and(|parent| fs::create_dir_all(parent).is_ok()));
+        assert!(fs::write(&candidate, b"managed codex").is_ok());
+        if let Ok(metadata) = fs::metadata(&candidate) {
+            let mut permissions = metadata.permissions();
+            permissions.set_mode(0o755);
+            assert!(fs::set_permissions(&candidate, permissions).is_ok());
+        }
+        candidate
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn macos_locator_prefers_unified_chatgpt_and_keeps_legacy_codex_fallback() {
+        static NEXT_DIRECTORY: AtomicU64 = AtomicU64::new(0);
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|duration| duration.as_nanos())
+            .unwrap_or_default();
+        let root = std::env::temp_dir().join(format!(
+            "quota-glance-macos-apps-{nonce}-{}",
+            NEXT_DIRECTORY.fetch_add(1, Ordering::Relaxed)
+        ));
+        let applications = root.join("Applications");
+        assert!(fs::create_dir_all(&applications).is_ok());
+        let legacy = create_macos_runtime(&applications, "Codex.app");
+        let unified = create_macos_runtime(&applications, "ChatGPT.app");
+
+        assert_eq!(
+            find_macos_desktop_runtime(&applications),
+            fs::canonicalize(&unified).ok()
+        );
+        assert!(fs::remove_dir_all(applications.join("ChatGPT.app")).is_ok());
+        assert_eq!(
+            find_macos_desktop_runtime(&applications),
+            fs::canonicalize(&legacy).ok()
+        );
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn macos_locator_prefers_unified_chatgpt_across_installation_roots() {
+        static NEXT_DIRECTORY: AtomicU64 = AtomicU64::new(0);
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|duration| duration.as_nanos())
+            .unwrap_or_default();
+        let root = std::env::temp_dir().join(format!(
+            "quota-glance-macos-root-priority-{nonce}-{}",
+            NEXT_DIRECTORY.fetch_add(1, Ordering::Relaxed)
+        ));
+        let system_applications = root.join("system").join("Applications");
+        let user_applications = root.join("user").join("Applications");
+        assert!(fs::create_dir_all(&system_applications).is_ok());
+        assert!(fs::create_dir_all(&user_applications).is_ok());
+        let _ = create_macos_runtime(&system_applications, "Codex.app");
+        let unified = create_macos_runtime(&user_applications, "ChatGPT.app");
+
+        assert_eq!(
+            find_macos_desktop_runtime_in_roots(&[system_applications, user_applications]),
+            fs::canonicalize(unified).ok()
+        );
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn macos_locator_ignores_classic_unknown_and_non_executable_bundles() {
+        static NEXT_DIRECTORY: AtomicU64 = AtomicU64::new(0);
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|duration| duration.as_nanos())
+            .unwrap_or_default();
+        let root = std::env::temp_dir().join(format!(
+            "quota-glance-macos-untrusted-{nonce}-{}",
+            NEXT_DIRECTORY.fetch_add(1, Ordering::Relaxed)
+        ));
+        let applications = root.join("Applications");
+        assert!(fs::create_dir_all(&applications).is_ok());
+        let _ = create_macos_runtime(&applications, "ChatGPT Classic.app");
+        let _ = create_macos_runtime(&applications, "Fake.app");
+        let candidate = create_macos_runtime(&applications, "ChatGPT.app");
+        if let Ok(metadata) = fs::metadata(&candidate) {
+            let mut permissions = metadata.permissions();
+            permissions.set_mode(0o644);
+            assert!(fs::set_permissions(candidate, permissions).is_ok());
+        }
+
+        assert_eq!(find_macos_desktop_runtime(&applications), None);
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn macos_locator_rejects_bundle_and_binary_symlink_escape() {
+        static NEXT_DIRECTORY: AtomicU64 = AtomicU64::new(0);
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|duration| duration.as_nanos())
+            .unwrap_or_default();
+        let root = std::env::temp_dir().join(format!(
+            "quota-glance-macos-symlink-{nonce}-{}",
+            NEXT_DIRECTORY.fetch_add(1, Ordering::Relaxed)
+        ));
+        let applications = root.join("Applications");
+        let outside_bundle = root.join("outside.app");
+        assert!(fs::create_dir_all(&applications).is_ok());
+        let _ = create_macos_runtime(&root, "outside.app");
+        assert!(symlink(&outside_bundle, applications.join("ChatGPT.app")).is_ok());
+        assert_eq!(find_macos_desktop_runtime(&applications), None);
+
+        assert!(fs::remove_file(applications.join("ChatGPT.app")).is_ok());
+        let resources = applications
+            .join("ChatGPT.app")
+            .join("Contents")
+            .join("Resources");
+        assert!(fs::create_dir_all(&resources).is_ok());
+        let outside_binary = root.join("outside-codex");
+        assert!(fs::write(&outside_binary, b"outside").is_ok());
+        if let Ok(metadata) = fs::metadata(&outside_binary) {
+            let mut permissions = metadata.permissions();
+            permissions.set_mode(0o755);
+            assert!(fs::set_permissions(&outside_binary, permissions).is_ok());
+        }
+        assert!(symlink(&outside_binary, resources.join("codex")).is_ok());
+        assert_eq!(find_macos_desktop_runtime(&applications), None);
         let _ = fs::remove_dir_all(root);
     }
 

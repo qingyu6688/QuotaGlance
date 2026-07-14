@@ -13,6 +13,7 @@ function renderCard(
   const onRefresh = vi.fn();
   const onToggleAlwaysOnTop = vi.fn();
   const onToggleClickThrough = vi.fn();
+  const onToggleLaunchAtLogin = vi.fn();
   const onChangeMode = vi.fn();
   const onChangeTheme = vi.fn();
   const onSettingsOpenChange = vi.fn();
@@ -26,6 +27,7 @@ function renderCard(
       onSettingsOpenChange={onSettingsOpenChange}
       onToggleAlwaysOnTop={onToggleAlwaysOnTop}
       onToggleClickThrough={onToggleClickThrough}
+      onToggleLaunchAtLogin={onToggleLaunchAtLogin}
       pendingAction={null}
       preferences={createMockPreferences().preferences}
       refreshState={INITIAL_REFRESH_STATE}
@@ -39,6 +41,7 @@ function renderCard(
     onRefresh,
     onToggleAlwaysOnTop,
     onToggleClickThrough,
+    onToggleLaunchAtLogin,
     onChangeMode,
     onChangeTheme,
     onSettingsOpenChange,
@@ -54,7 +57,7 @@ function requireFirstBucket(snapshot: QuotaSnapshot): QuotaBucket {
 }
 
 describe("QuotaCard", () => {
-  it("只渲染周额度并忽略其他周期窗口", () => {
+  it("保留当前周额度主视觉并补齐参考项目的短周期与重置机会", () => {
     const base = createMockSnapshot("ok");
     const baseBucket = requireFirstBucket(base);
     const snapshot: QuotaSnapshot = {
@@ -99,7 +102,10 @@ describe("QuotaCard", () => {
     renderCard("ok", snapshot);
 
     expect(screen.getByText("周额度")).toBeInTheDocument();
-    expect(screen.queryByText("5 小时窗口")).not.toBeInTheDocument();
+    expect(screen.getByText("5 小时额度")).toBeInTheDocument();
+    expect(screen.getByText("74%")).toBeInTheDocument();
+    expect(screen.getByText("重置机会")).toBeInTheDocument();
+    expect(screen.getByText("1 次")).toBeInTheDocument();
     expect(screen.queryByText("月度审查额度")).not.toBeInTheDocument();
     expect(screen.getByRole("progressbar", { name: "周额度剩余 96%" })).toHaveAttribute(
       "data-tone",
@@ -107,7 +113,7 @@ describe("QuotaCard", () => {
     );
   });
 
-  it("没有周额度时显示明确空状态", () => {
+  it("只有短周期时仍展示真实额度而不伪造周额度", () => {
     const base = createMockSnapshot("ok");
     const baseBucket = requireFirstBucket(base);
     const snapshot: QuotaSnapshot = {
@@ -132,9 +138,38 @@ describe("QuotaCard", () => {
 
     renderCard("ok", snapshot);
 
-    expect(screen.getByText("暂无周额度")).toBeInTheDocument();
+    expect(screen.getByText("5 小时额度")).toBeInTheDocument();
+    expect(screen.getByRole("progressbar", { name: "5 小时额度剩余 74%" })).toBeInTheDocument();
+    expect(screen.queryByText("周额度")).not.toBeInTheDocument();
+  });
+
+  it("没有受支持周期时显示明确空状态", () => {
+    const base = createMockSnapshot("ok");
+    const baseBucket = requireFirstBucket(base);
+    const snapshot: QuotaSnapshot = {
+      ...base,
+      buckets: [
+        {
+          ...baseBucket,
+          windows: [
+            {
+              slot: "primary",
+              kind: "monthly",
+              label: "月度额度",
+              usedPercent: 20,
+              remainingPercent: 80,
+              windowDurationMins: 43_200,
+              resetsAt: new Date(Date.now() + 86_400_000).toISOString(),
+            },
+          ],
+        },
+      ],
+    };
+
+    renderCard("ok", snapshot);
+
+    expect(screen.getByText("暂无可用额度")).toBeInTheDocument();
     expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
-    expect(screen.queryByText("74%", { exact: true })).not.toBeInTheDocument();
   });
 
   it("使用提醒语义展示低额度", () => {
@@ -176,7 +211,10 @@ describe("QuotaCard", () => {
   it("错误状态给出单一重试动作", () => {
     const actions = renderCard("error");
 
-    expect(screen.getByText("未找到 Codex App Server")).toBeInTheDocument();
+    expect(screen.getByText("未找到可用的 Codex")).toBeInTheDocument();
+    expect(
+      screen.getByText(/ChatGPT 桌面应用（包含 Codex）/),
+    ).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "重新读取" }));
     expect(actions.onRefresh).toHaveBeenCalledTimes(1);
   });
@@ -185,7 +223,7 @@ describe("QuotaCard", () => {
     const actions = renderCard("ok");
     const card = screen.getByLabelText(/QuotaGlance 额度卡片/);
 
-    fireEvent.click(screen.getByRole("button", { name: "置顶窗口" }));
+    fireEvent.click(screen.getByRole("button", { name: "取消窗口置顶" }));
     fireEvent.click(screen.getByRole("button", { name: "打开设置" }));
     fireEvent.doubleClick(card);
     fireEvent.keyDown(card, { key: "Enter" });
@@ -210,6 +248,7 @@ describe("QuotaCard", () => {
     fireEvent.click(screen.getByRole("radio", { name: "日落珊瑚主题" }));
     fireEvent.click(screen.getByRole("radio", { name: "蜂蜜琥珀主题" }));
     fireEvent.click(screen.getByRole("radio", { name: "玫瑰铜夜主题" }));
+    fireEvent.click(screen.getByRole("switch", { name: "登录时启动" }));
 
     expect(actions.onChangeTheme).toHaveBeenNthCalledWith(1, "aurora");
     expect(actions.onChangeTheme).toHaveBeenNthCalledWith(2, "graphite");
@@ -217,6 +256,7 @@ describe("QuotaCard", () => {
     expect(actions.onChangeTheme).toHaveBeenNthCalledWith(4, "sunset");
     expect(actions.onChangeTheme).toHaveBeenNthCalledWith(5, "honey");
     expect(actions.onChangeTheme).toHaveBeenNthCalledWith(6, "rose");
+    expect(actions.onToggleLaunchAtLogin).toHaveBeenCalledTimes(1);
   });
 
   it("Escape 关闭设置后将焦点归还设置按钮", async () => {
@@ -229,6 +269,7 @@ describe("QuotaCard", () => {
         onSettingsOpenChange={vi.fn()}
         onToggleAlwaysOnTop={vi.fn()}
         onToggleClickThrough={vi.fn()}
+        onToggleLaunchAtLogin={vi.fn()}
         pendingAction={null}
         preferences={createMockPreferences().preferences}
         refreshState={INITIAL_REFRESH_STATE}
@@ -249,6 +290,7 @@ describe("QuotaCard", () => {
             onSettingsOpenChange={onSettingsOpenChange}
             onToggleAlwaysOnTop={vi.fn()}
             onToggleClickThrough={vi.fn()}
+            onToggleLaunchAtLogin={vi.fn()}
             pendingAction={null}
             preferences={createMockPreferences().preferences}
             refreshState={INITIAL_REFRESH_STATE}
@@ -269,6 +311,7 @@ describe("QuotaCard", () => {
         onSettingsOpenChange={onSettingsOpenChange}
         onToggleAlwaysOnTop={vi.fn()}
         onToggleClickThrough={vi.fn()}
+        onToggleLaunchAtLogin={vi.fn()}
         pendingAction={null}
         preferences={createMockPreferences().preferences}
         refreshState={INITIAL_REFRESH_STATE}

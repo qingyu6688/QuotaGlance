@@ -17,6 +17,7 @@ export interface QuotaGlanceApi {
   setWidgetMode(mode: WidgetMode): Promise<WindowState>;
   setAlwaysOnTop(enabled: boolean): Promise<WindowState>;
   setClickThrough(enabled: boolean): Promise<WindowState>;
+  setLaunchAtLogin(enabled: boolean): Promise<PreferencesEnvelope>;
   quitApp(): Promise<void>;
   onQuotaSnapshot(listener: (snapshot: QuotaSnapshot) => void): Promise<Unsubscribe>;
   onRefreshState(listener: (state: RefreshState) => void): Promise<Unsubscribe>;

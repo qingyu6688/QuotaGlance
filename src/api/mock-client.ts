@@ -131,6 +131,22 @@ export class BrowserMockClient implements QuotaGlanceApi {
     return this.updateWindowState({ clickThrough: enabled });
   }
 
+  setLaunchAtLogin(enabled: boolean): Promise<PreferencesEnvelope> {
+    this.preferences = {
+      ...this.preferences,
+      preferences: {
+        ...this.preferences.preferences,
+        revision: this.preferences.preferences.revision + 1,
+        startup: {
+          ...this.preferences.preferences.startup,
+          launchAtLogin: enabled,
+        },
+      },
+    };
+    notify(this.preferencesListeners, this.preferences);
+    return Promise.resolve(this.preferences);
+  }
+
   quitApp(): Promise<void> {
     return Promise.resolve();
   }

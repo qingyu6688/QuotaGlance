@@ -14,6 +14,7 @@ use tauri::{
     tray::{MouseButton, MouseButtonState, TrayIconEvent},
     Manager, WindowEvent,
 };
+use tauri_plugin_autostart::{MacosLauncher, ManagerExt};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -22,10 +23,17 @@ pub fn run() {
             let state = app.state::<AppState>();
             let _ = apply_widget_mode(app, &state, WidgetMode::Card);
         }))
+        .plugin(tauri_plugin_autostart::init(
+            MacosLauncher::LaunchAgent,
+            None,
+        ))
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .setup(|app| {
             let mut preferences_store = PreferencesStore::new(app.path().app_config_dir()?);
-            let loaded_preferences = preferences_store.load();
+            let mut loaded_preferences = preferences_store.load();
+            if let Ok(enabled) = app.autolaunch().is_enabled() {
+                loaded_preferences.preferences.startup.launch_at_login = enabled;
+            }
             app.manage(AppState::new(
                 env!("CARGO_PKG_VERSION"),
                 preferences_store,
@@ -54,6 +62,7 @@ pub fn run() {
             commands::set_widget_mode,
             commands::set_always_on_top,
             commands::set_click_through,
+            commands::set_launch_at_login,
             commands::quit_app,
         ])
         .on_tray_icon_event(|app, event| {

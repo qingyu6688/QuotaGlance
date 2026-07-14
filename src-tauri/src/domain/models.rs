@@ -61,14 +61,12 @@ impl Default for AuthSummary {
 #[serde(rename_all = "camelCase")]
 pub enum QuotaSource {
     AppServer,
-    LegacyCompat,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum ProviderKind {
     CodexAppServer,
-    LegacyWham,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

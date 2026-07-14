@@ -1,4 +1,5 @@
 use tauri::{AppHandle, Emitter, State};
+use tauri_plugin_autostart::ManagerExt;
 
 use crate::{
     application::{
@@ -113,6 +114,69 @@ pub fn set_click_through(
 }
 
 #[tauri::command]
+pub fn set_launch_at_login(
+    enabled: bool,
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> Result<PreferencesEnvelope, IpcError> {
+    let manager = app.autolaunch();
+    let payload = {
+        let mut preferences = state
+            .preferences
+            .write()
+            .map_err(|_| state_unavailable_error())?;
+        let mut preferences_store = state
+            .preferences_store
+            .lock()
+            .map_err(|_| state_unavailable_error())?;
+        let previously_enabled = manager
+            .is_enabled()
+            .map_err(|_| startup_operation_error())?;
+        let revision = state.next_revision();
+        let mut next = preferences.clone();
+        next.revision = revision;
+        next.startup.launch_at_login = enabled;
+
+        if previously_enabled != enabled {
+            let result = if enabled {
+                manager.enable()
+            } else {
+                manager.disable()
+            };
+            result.map_err(|_| startup_operation_error())?;
+        }
+
+        let save_result = preferences_store.save(&next);
+        if let Err(error) = save_result {
+            let rollback_result = if previously_enabled != enabled {
+                if previously_enabled {
+                    manager.enable()
+                } else {
+                    manager.disable()
+                }
+            } else {
+                Ok(())
+            };
+            if rollback_result.is_err() {
+                return Err(startup_operation_error());
+            }
+            return Err(preferences_store_error(error));
+        }
+        *preferences = next;
+        if let Ok(mut recovery) = state.preferences_recovery.write() {
+            *recovery = None;
+        }
+        PreferencesEnvelope {
+            preferences: preferences.clone(),
+            recovery: None,
+        }
+    };
+
+    let _ = app.emit_to("widget", "preferences://changed", payload.clone());
+    Ok(payload)
+}
+
+#[tauri::command]
 pub fn quit_app(app: AppHandle) {
     app.exit(0);
 }
@@ -121,6 +185,15 @@ fn state_unavailable_error() -> IpcError {
     IpcError::new(
         ErrorCode::ServiceUnavailable,
         "error.internalStateUnavailable",
+        true,
+        None,
+    )
+}
+
+fn startup_operation_error() -> IpcError {
+    IpcError::new(
+        ErrorCode::StartupOperationFailed,
+        "error.startupOperationFailed",
         true,
         None,
     )
