@@ -26,25 +26,32 @@
   <a href="#从源码构建">从源码构建</a>
 </p>
 
-![QuotaGlance 周额度卡片与动态水面悬浮球界面预览](docs/design-assets/quotaglance-showcase-v2.png)
+![QuotaGlance 周额度卡片与动态水面悬浮球界面预览](docs/design-assets/quotaglance-showcase-v3.png)
 
 <p align="center"><sub>周额度卡片与动态水面悬浮球界面预览，额度和日期会根据当前账号实时变化。</sub></p>
 
+## v0.1.6 更新
+
+- 重新梳理 320 × 320 卡片的信息层级，短周期额度与重置机会改为更易读的整行详情，操作反馈不再覆盖数据新鲜度。
+- 设置改为完整玻璃面板，七套主题可在同一行快速切换，并补齐键盘方向键、焦点约束与 Escape 关闭行为。
+- 统一暖色主题的球壳、水体、水线与状态色，收紧浮球外发光范围，避免在 136 × 136 透明窗口中被裁切。
+- 浮球继续支持拖拽、双击展开和精简右键菜单，同时补充键盘菜单键操作。
+
 ## 下载 QuotaGlance
 
-当前版本：**`v0.1.5`**
+当前版本：**`v0.1.6`**
 
 选择与你的设备匹配的软件。Windows 普通用户推荐 EXE 安装版；Ubuntu、Debian 用户推荐 DEB；其他 Linux 发行版可优先尝试 AppImage。
 
 | 系统 | 适用设备 | 软件安装包 |
 |---|---|---|
-| Windows | x64 | [EXE 安装版（推荐）](https://github.com/qingyu6688/QuotaGlance/releases/download/v0.1.5/QuotaGlance_0.1.5_windows_x64-setup.exe) · [MSI 安装包](https://github.com/qingyu6688/QuotaGlance/releases/download/v0.1.5/QuotaGlance_0.1.5_windows_x64.msi) |
-| macOS | Apple Silicon | [DMG 安装包](https://github.com/qingyu6688/QuotaGlance/releases/download/v0.1.5/QuotaGlance_0.1.5_darwin_aarch64.dmg) |
-| macOS | Intel 处理器 | [DMG 安装包](https://github.com/qingyu6688/QuotaGlance/releases/download/v0.1.5/QuotaGlance_0.1.5_darwin_x64.dmg) |
-| Linux | x64 | [AppImage](https://github.com/qingyu6688/QuotaGlance/releases/download/v0.1.5/QuotaGlance_0.1.5_linux_amd64.AppImage) · [DEB](https://github.com/qingyu6688/QuotaGlance/releases/download/v0.1.5/QuotaGlance_0.1.5_linux_amd64.deb) |
-| Linux | ARM64 | [AppImage](https://github.com/qingyu6688/QuotaGlance/releases/download/v0.1.5/QuotaGlance_0.1.5_linux_aarch64.AppImage) · [DEB](https://github.com/qingyu6688/QuotaGlance/releases/download/v0.1.5/QuotaGlance_0.1.5_linux_arm64.deb) |
+| Windows | x64 | [EXE 安装版（推荐）](https://github.com/qingyu6688/QuotaGlance/releases/download/v0.1.6/QuotaGlance_0.1.6_windows_x64-setup.exe) · [MSI 安装包](https://github.com/qingyu6688/QuotaGlance/releases/download/v0.1.6/QuotaGlance_0.1.6_windows_x64.msi) |
+| macOS | Apple Silicon | [DMG 安装包](https://github.com/qingyu6688/QuotaGlance/releases/download/v0.1.6/QuotaGlance_0.1.6_darwin_aarch64.dmg) |
+| macOS | Intel 处理器 | [DMG 安装包](https://github.com/qingyu6688/QuotaGlance/releases/download/v0.1.6/QuotaGlance_0.1.6_darwin_x64.dmg) |
+| Linux | x64 | [AppImage](https://github.com/qingyu6688/QuotaGlance/releases/download/v0.1.6/QuotaGlance_0.1.6_linux_amd64.AppImage) · [DEB](https://github.com/qingyu6688/QuotaGlance/releases/download/v0.1.6/QuotaGlance_0.1.6_linux_amd64.deb) |
+| Linux | ARM64 | [AppImage](https://github.com/qingyu6688/QuotaGlance/releases/download/v0.1.6/QuotaGlance_0.1.6_linux_aarch64.AppImage) · [DEB](https://github.com/qingyu6688/QuotaGlance/releases/download/v0.1.6/QuotaGlance_0.1.6_linux_arm64.deb) |
 
-[查看全部版本](https://github.com/qingyu6688/QuotaGlance/releases) · [下载 SHA-256 校验文件](https://github.com/qingyu6688/QuotaGlance/releases/download/v0.1.5/SHA256SUMS.txt)
+[查看全部版本](https://github.com/qingyu6688/QuotaGlance/releases) · [下载 SHA-256 校验文件](https://github.com/qingyu6688/QuotaGlance/releases/download/v0.1.6/SHA256SUMS.txt)
 
 > [!NOTE]
 > 当前安装包尚未完成商业代码签名与 macOS 公证，首次启动时可能触发系统安全提示。请只从本仓库 Releases 页面下载，并使用 `SHA256SUMS.txt` 核对文件完整性。
@@ -86,7 +93,7 @@
 codex --version
 ```
 
-Windows 会优先发现已登录 Codex 桌面应用的受管运行时，因此不要求 `codex` 一定出现在 `PATH` 中。macOS 会优先检查系统与用户“应用程序”目录中的统一版 `ChatGPT.app`，再兼容旧版 `Codex.app`，最后回退到 `PATH` 和常见 CLI 目录；Linux 会检查 `PATH` 和常见用户安装目录。若仍无法发现，请先修复应用或 CLI 安装，再重新启动 QuotaGlance。这些候选均属于用户本机的外部安装，`0.1.5` 尚未验证其 OpenAI 代码签名，不能视为 QuotaGlance 随包提供的可信 sidecar。
+Windows 会优先发现已登录 Codex 桌面应用的受管运行时，因此不要求 `codex` 一定出现在 `PATH` 中。macOS 会优先检查系统与用户“应用程序”目录中的统一版 `ChatGPT.app`，再兼容旧版 `Codex.app`，最后回退到 `PATH` 和常见 CLI 目录；Linux 会检查 `PATH` 和常见用户安装目录。若仍无法发现，请先修复应用或 CLI 安装，再重新启动 QuotaGlance。这些候选均属于用户本机的外部安装，`0.1.6` 尚未验证其 OpenAI 代码签名，不能视为 QuotaGlance 随包提供的可信 sidecar。
 
 ### QuotaGlance 会读取我的 Token 吗？
 

@@ -42,6 +42,7 @@ export function PreviewBoard() {
   const themeParameter = new URLSearchParams(window.location.search).get("theme");
   const initialTheme = isTheme(themeParameter) ? themeParameter : null;
   const initialThemeApplied = useRef(false);
+  const errorScenarioObserved = useRef(false);
 
   useEffect(() => {
     if (initialTheme === null || initialThemeApplied.current) {
@@ -53,6 +54,25 @@ export function PreviewBoard() {
       void controller.setTheme(initialTheme);
     }
   }, [controller, initialTheme, preferences.theme]);
+
+  useEffect(() => {
+    if (scenario !== "error") {
+      errorScenarioObserved.current = false;
+      return;
+    }
+
+    if (controller.snapshot.status !== "ok") {
+      errorScenarioObserved.current = true;
+      return;
+    }
+
+    if (!errorScenarioObserved.current || controller.refreshState.phase !== "idle") {
+      return;
+    }
+
+    const timer = window.setTimeout(() => setScenario("ok"), 0);
+    return () => window.clearTimeout(timer);
+  }, [controller.refreshState.phase, controller.snapshot.status, scenario]);
 
   const changeScenario = (nextScenario: MockScenario): void => {
     setOrbMenuOpen(false);

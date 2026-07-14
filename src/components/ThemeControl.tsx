@@ -1,3 +1,4 @@
+import type { KeyboardEvent } from "react";
 import type { Theme } from "../types/ui";
 import { Icon } from "./Icon";
 
@@ -22,13 +23,54 @@ const THEME_OPTIONS: ReadonlyArray<{
 ];
 
 export function ThemeControl({ value, disabled, onChange }: ThemeControlProps) {
+  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>): void => {
+    const keys = ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End"];
+    if (!keys.includes(event.key) || disabled) {
+      return;
+    }
+
+    const buttons = Array.from(
+      event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="radio"]:not(:disabled)'),
+    );
+    if (buttons.length === 0) {
+      return;
+    }
+
+    const currentIndex = Math.max(
+      0,
+      THEME_OPTIONS.findIndex((option) => option.value === value),
+    );
+    const step = event.key === "ArrowLeft" || event.key === "ArrowUp" ? -1 : 1;
+    const nextIndex =
+      event.key === "Home"
+        ? 0
+        : event.key === "End"
+          ? buttons.length - 1
+          : (currentIndex + step + buttons.length) % buttons.length;
+    const nextOption = THEME_OPTIONS[nextIndex];
+    const nextButton = buttons[nextIndex];
+    if (nextOption === undefined || nextButton === undefined) {
+      return;
+    }
+
+    event.preventDefault();
+    nextButton.focus();
+    onChange(nextOption.value);
+  };
+
   return (
     <section className="theme-setting" aria-labelledby="theme-setting-title">
       <div className="theme-setting__heading">
         <Icon name="palette" size={17} />
         <strong id="theme-setting-title">主题</strong>
       </div>
-      <div aria-busy={disabled} aria-label="外观主题" className="theme-control" role="radiogroup">
+      <div
+        aria-busy={disabled}
+        aria-label="外观主题"
+        className="theme-control"
+        onKeyDown={handleKeyDown}
+        role="radiogroup"
+      >
         {THEME_OPTIONS.map((option) => (
           <button
             aria-checked={value === option.value}
@@ -37,6 +79,7 @@ export function ThemeControl({ value, disabled, onChange }: ThemeControlProps) {
             key={option.value}
             onClick={() => onChange(option.value)}
             role="radio"
+            tabIndex={value === option.value ? 0 : -1}
             type="button"
           >
             <span

@@ -20,7 +20,8 @@ interface QuotaOrbProps {
 }
 
 const ORB_DRAG_THRESHOLD_PX = 5;
-const ORB_WATER_HEIGHT_PER_PERCENT = 0.64;
+const ORB_WATER_MIN_HEIGHT_PX = 44;
+const ORB_WATER_DYNAMIC_RANGE_PX = 20;
 
 export function QuotaOrb({
   snapshot,
@@ -40,7 +41,10 @@ export function QuotaOrb({
     ? resolveQuotaTone(snapshot.status, quotaWindow.remainingPercent, preferences)
     : "neutral";
   const normalizedLevel = hasValue ? Math.min(100, Math.max(0, quotaWindow.remainingPercent)) : 0;
-  const waterHeight = Math.round(normalizedLevel * ORB_WATER_HEIGHT_PER_PERCENT * 100) / 100;
+  const waterHeight =
+    Math.round(
+      (ORB_WATER_MIN_HEIGHT_PX + (normalizedLevel / 100) * ORB_WATER_DYNAMIC_RANGE_PX) * 100,
+    ) / 100;
   const waterStyle = hasValue
     ? ({
         "--quota-water-level": `${normalizedLevel}%`,
@@ -55,6 +59,12 @@ export function QuotaOrb({
   };
 
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>): void => {
+    if (event.key === "ContextMenu" || (event.shiftKey && event.key === "F10")) {
+      event.preventDefault();
+      onOpenContextMenu();
+      return;
+    }
+
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
       activate();
@@ -137,6 +147,7 @@ export function QuotaOrb({
       onDoubleClick={handleDoubleClick}
       onKeyDown={handleKeyDown}
       onMouseDown={handleMouseDown}
+      onMouseLeave={handleMouseUp}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       role="button"

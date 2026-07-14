@@ -3,12 +3,15 @@ import { describe, expect, it, vi } from "vitest";
 import { createMockPreferences, createMockSnapshot, type MockScenario } from "../api/fixtures";
 import { INITIAL_REFRESH_STATE, INITIAL_WINDOW_STATE } from "../models/defaults";
 import type { QuotaBucket, QuotaSnapshot } from "../types/quota";
+import type { PendingActionName } from "../types/ui";
 import { QuotaCard } from "./QuotaCard";
 
 function renderCard(
   scenario: MockScenario,
   snapshotOverride?: QuotaSnapshot,
   settingsOpen = false,
+  feedback: string | null = null,
+  pendingAction: PendingActionName = null,
 ) {
   const onRefresh = vi.fn();
   const onToggleAlwaysOnTop = vi.fn();
@@ -20,7 +23,7 @@ function renderCard(
 
   render(
     <QuotaCard
-      feedback={null}
+      feedback={feedback}
       onChangeMode={onChangeMode}
       onChangeTheme={onChangeTheme}
       onRefresh={onRefresh}
@@ -28,7 +31,7 @@ function renderCard(
       onToggleAlwaysOnTop={onToggleAlwaysOnTop}
       onToggleClickThrough={onToggleClickThrough}
       onToggleLaunchAtLogin={onToggleLaunchAtLogin}
-      pendingAction={null}
+      pendingAction={pendingAction}
       preferences={createMockPreferences().preferences}
       refreshState={INITIAL_REFRESH_STATE}
       settingsOpen={settingsOpen}
@@ -234,6 +237,15 @@ describe("QuotaCard", () => {
     expect(actions.onChangeMode).toHaveBeenNthCalledWith(2, "orb");
   });
 
+  it("双击重置机会详情不会意外收起卡片", () => {
+    const actions = renderCard("ok");
+    const summary = screen.getByText("重置机会").closest("summary");
+
+    expect(summary).not.toBeNull();
+    fireEvent.doubleClick(summary as HTMLElement);
+    expect(actions.onChangeMode).not.toHaveBeenCalled();
+  });
+
   it("设置面板提供可持久化的主题切换入口", () => {
     const actions = renderCard("ok", undefined, true);
 
@@ -257,6 +269,52 @@ describe("QuotaCard", () => {
     expect(actions.onChangeTheme).toHaveBeenNthCalledWith(5, "honey");
     expect(actions.onChangeTheme).toHaveBeenNthCalledWith(6, "rose");
     expect(actions.onToggleLaunchAtLogin).toHaveBeenCalledTimes(1);
+  });
+
+  it("主题选择支持方向键并保持单一可聚焦项", () => {
+    const actions = renderCard("ok", undefined, true);
+    const themeGroup = screen.getByRole("radiogroup", { name: "外观主题" });
+    const systemTheme = screen.getByRole("radio", { name: "跟随系统主题" });
+    const auroraTheme = screen.getByRole("radio", { name: "极光主题" });
+
+    expect(systemTheme).toHaveAttribute("tabindex", "0");
+    expect(auroraTheme).toHaveAttribute("tabindex", "-1");
+    systemTheme.focus();
+    fireEvent.keyDown(themeGroup, { key: "ArrowRight" });
+
+    expect(actions.onChangeTheme).toHaveBeenCalledWith("aurora");
+    expect(auroraTheme).toHaveFocus();
+  });
+
+  it("设置对话框将 Tab 焦点约束在面板内部", () => {
+    renderCard("ok", undefined, true);
+    const dialog = screen.getByRole("dialog", { name: "设置" });
+    const closeButton = screen.getByRole("button", { name: "关闭设置" });
+    const lastSwitch = screen.getByRole("switch", { name: "登录时启动" });
+
+    closeButton.focus();
+    fireEvent.keyDown(dialog, { key: "Tab", shiftKey: true });
+    expect(lastSwitch).toHaveFocus();
+
+    fireEvent.keyDown(dialog, { key: "Tab" });
+    expect(closeButton).toHaveFocus();
+  });
+
+  it("操作反馈独立显示且不覆盖数据新鲜度", () => {
+    renderCard("ok", undefined, false, "刷新完成");
+
+    expect(screen.getByTestId("operation-feedback")).toHaveTextContent("刷新完成");
+    expect(screen.getByTestId("quota-freshness")).toHaveTextContent("刚刚更新");
+  });
+
+  it("设置内操作反馈保持可见且并发操作统一禁用", () => {
+    renderCard("ok", undefined, true, "正在开启登录时启动…", "startup");
+
+    expect(screen.getByTestId("operation-feedback")).toHaveTextContent("正在开启登录时启动…");
+    screen.getAllByRole("radio").forEach((control) => expect(control).toBeDisabled());
+    screen.getAllByRole("switch").forEach((control) => expect(control).toBeDisabled());
+    expect(screen.getByRole("button", { name: "卡片" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "浮球" })).toBeDisabled();
   });
 
   it("Escape 关闭设置后将焦点归还设置按钮", async () => {

@@ -130,15 +130,21 @@ function QuotaWindowView({
         <div className="quota-window__reference-details">
           {primaryWindow !== null ? (
             <div className="quota-window__detail" data-testid="short-term-quota">
-              <span>{resolveQuotaWindowLabel(primaryWindow)}</span>
+              <Icon name="clock" size={17} />
+              <span className="quota-window__detail-copy">
+                <span>{resolveQuotaWindowLabel(primaryWindow)}</span>
+                <small>{formatResetAt(primaryWindow.resetsAt)}</small>
+              </span>
               <strong>{primaryWindow.remainingPercent}%</strong>
-              <small>{formatResetAt(primaryWindow.resetsAt)}</small>
             </div>
           ) : null}
           {resetCreditCount !== null ? (
             <details className="quota-window__credits">
               <summary>
-                <span>重置机会</span>
+                <Icon name="refresh" size={17} />
+                <span className="quota-window__detail-copy">
+                  <span>重置机会</span>
+                </span>
                 <strong>{resetCreditCount} 次</strong>
               </summary>
               <div className="quota-window__credit-popover">
@@ -198,7 +204,10 @@ function EmptyState({ status, refreshing, onRefresh }: EmptyStateProps) {
 }
 
 function shouldIgnoreModeGesture(target: EventTarget): boolean {
-  return target instanceof Element && target.closest("button, [role='dialog']") !== null;
+  return (
+    target instanceof Element &&
+    target.closest("a, button, input, select, summary, textarea, [role='button'], [role='dialog']") !== null
+  );
 }
 
 export function QuotaCard({
@@ -223,7 +232,7 @@ export function QuotaCard({
   const shortTermDetail =
     presentation.weeklyWindow !== null ? presentation.primaryWindow : null;
   const refreshing = refreshState.phase === "refreshing" || pendingAction === "refresh";
-  const refreshDisabled = refreshing || refreshState.phase === "cooldown";
+  const refreshDisabled = pendingAction !== null || refreshing || refreshState.phase === "cooldown";
   const hasReadings =
     selectedWindow !== null &&
     (snapshot.status === "ok" ||
@@ -234,7 +243,7 @@ export function QuotaCard({
     : "neutral";
 
   const handleKeyDown = (event: KeyboardEvent<HTMLElement>): void => {
-    if (event.target !== event.currentTarget) {
+    if (event.target !== event.currentTarget || pendingAction !== null) {
       return;
     }
     if (event.key === "Enter" || event.key === " ") {
@@ -244,7 +253,7 @@ export function QuotaCard({
   };
 
   const handleDoubleClick = (event: MouseEvent<HTMLElement>): void => {
-    if (!shouldIgnoreModeGesture(event.target)) {
+    if (pendingAction === null && !shouldIgnoreModeGesture(event.target)) {
       onChangeMode("orb");
     }
   };
@@ -254,10 +263,10 @@ export function QuotaCard({
     window.requestAnimationFrame(() => settingsButtonRef.current?.focus());
   };
 
-  const footerText =
+  const freshnessText =
     snapshot.status === "stale"
       ? `数据可能已过期 · ${formatFreshness(snapshot)}`
-      : feedback ?? formatFreshness(snapshot).replace("最后更新：", "").replace("刚刚", "刚刚更新");
+      : formatFreshness(snapshot).replace("最后更新：", "").replace("刚刚", "刚刚更新");
 
   return (
     <article
@@ -270,7 +279,7 @@ export function QuotaCard({
       tabIndex={0}
     >
       <div aria-hidden="true" className="quota-card__aurora" />
-      <header className="quota-card__header" data-tauri-drag-region>
+      <header aria-hidden={settingsOpen} className="quota-card__header" data-tauri-drag-region>
         <div className="quota-card__identity" data-tauri-drag-region>
           <h1 data-tauri-drag-region>{resolvePlanLabel(snapshot).toUpperCase()}</h1>
         </div>
@@ -285,7 +294,7 @@ export function QuotaCard({
           <IconButton
             aria-pressed={windowState.alwaysOnTop}
             busy={pendingAction === "pin"}
-            disabled={pendingAction === "pin"}
+            disabled={pendingAction !== null}
             icon="pin"
             label={windowState.alwaysOnTop ? "取消窗口置顶" : "置顶窗口"}
             onClick={onToggleAlwaysOnTop}
@@ -302,7 +311,10 @@ export function QuotaCard({
         </div>
       </header>
 
-      <div className={`quota-card__body${hasReadings || snapshot.status === "loading" ? " quota-card__body--single" : ""}`}>
+      <div
+        aria-hidden={settingsOpen}
+        className={`quota-card__body${hasReadings || snapshot.status === "loading" ? " quota-card__body--single" : ""}`}
+      >
         {snapshot.status === "loading" ? <QuotaLoading /> : null}
         {hasReadings ? (
           <QuotaWindowView
@@ -319,13 +331,26 @@ export function QuotaCard({
         ) : null}
       </div>
 
-      <footer aria-live="polite" className="quota-card__footer">
+      <footer aria-hidden={settingsOpen} className="quota-card__footer">
         <span aria-hidden="true" className="status-dot" data-status={snapshot.status} />
-        <span>{footerText}</span>
+        <span data-testid="quota-freshness">{freshnessText}</span>
+        {feedback !== null && !settingsOpen ? (
+          <span
+            aria-live="polite"
+            className="quota-card__feedback"
+            data-testid="operation-feedback"
+            role="status"
+            title={feedback}
+          >
+            <Icon name="info" size={13} />
+            <span>{feedback}</span>
+          </span>
+        ) : null}
       </footer>
 
       {settingsOpen ? (
         <SettingsPanel
+          feedback={feedback}
           onChangeMode={onChangeMode}
           onChangeTheme={onChangeTheme}
           onClose={closeSettings}

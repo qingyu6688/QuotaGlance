@@ -25,6 +25,8 @@ type PendingAction =
   | "startup"
   | null;
 
+const FEEDBACK_VISIBLE_MS = 2_600;
+
 interface QuotaGlanceController {
   snapshot: QuotaSnapshot;
   preferencesEnvelope: PreferencesEnvelope;
@@ -92,6 +94,15 @@ export function useQuotaGlance(): QuotaGlanceController {
   const [refreshState, setRefreshState] = useState<RefreshState>(INITIAL_REFRESH_STATE);
   const [pendingAction, setPendingAction] = useState<PendingAction>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (feedback === null || pendingAction !== null) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => setFeedback(null), FEEDBACK_VISIBLE_MS);
+    return () => window.clearTimeout(timer);
+  }, [feedback, pendingAction]);
 
   useEffect(() => {
     let disposed = false;
@@ -167,7 +178,7 @@ export function useQuotaGlance(): QuotaGlanceController {
   }, []);
 
   const refresh = useCallback(async (): Promise<void> => {
-    if (pendingAction === "refresh" || refreshState.phase === "refreshing") {
+    if (pendingAction !== null || refreshState.phase === "refreshing") {
       return;
     }
 
@@ -185,7 +196,7 @@ export function useQuotaGlance(): QuotaGlanceController {
   }, [pendingAction, refreshState.phase]);
 
   const setMode = useCallback(async (mode: WidgetMode): Promise<void> => {
-    if (pendingAction === "mode" || mode === "hidden") {
+    if (pendingAction !== null || mode === "hidden") {
       return;
     }
 
@@ -221,7 +232,7 @@ export function useQuotaGlance(): QuotaGlanceController {
   }, [pendingAction, preferencesEnvelope.preferences.theme]);
 
   const toggleAlwaysOnTop = useCallback(async (): Promise<void> => {
-    if (pendingAction === "pin") {
+    if (pendingAction !== null) {
       return;
     }
 
@@ -240,7 +251,7 @@ export function useQuotaGlance(): QuotaGlanceController {
   }, [pendingAction, windowState.alwaysOnTop]);
 
   const toggleClickThrough = useCallback(async (): Promise<void> => {
-    if (pendingAction === "clickThrough") {
+    if (pendingAction !== null) {
       return;
     }
 
@@ -259,7 +270,7 @@ export function useQuotaGlance(): QuotaGlanceController {
   }, [pendingAction, windowState.clickThrough]);
 
   const toggleLaunchAtLogin = useCallback(async (): Promise<void> => {
-    if (pendingAction === "startup") {
+    if (pendingAction !== null) {
       return;
     }
 

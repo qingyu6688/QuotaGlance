@@ -1,6 +1,6 @@
 [package]
 name = "quota-glance"
-version = "0.1.5"
+version = "0.1.6"
 description = "本地优先的 Codex 额度悬浮助手"
 authors = ["QuotaGlance contributors"]
 license = "MIT"

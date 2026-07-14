@@ -1,6 +1,6 @@
 # QuotaGlance 开发环境说明
 
-> 文档状态：`0.1.5` 工程基线
+> 文档状态：`0.1.6` 工程基线
 > 核对日期：2026-07-14
 > 当前阶段：M0-M3 实施
 > 文档维护：maorongkang@gmail.com
@@ -10,13 +10,13 @@
 QuotaGlance 已建立 Tauri 2、Rust、React、TypeScript 与 Vite 工程。当前 Windows 10 开发机已完成以下验证：
 
 - `npm ci` 可安装锁定依赖；
-- 前端 lint、类型检查、20 项测试和生产构建通过；
+- 前端 lint、类型检查、26 项测试和生产构建通过；
 - 当前 Windows 环境运行 45 项 Rust 测试并全部通过（36 项默认目标测试与 9 项假 App Server 跨进程契约测试），覆盖 App Server 协议/边界、运行时发现、偏好与服务状态；macOS 统一版/旧版应用固定路径及符号链接边界测试已加入平台条件测试；
-- Tauri debug `--no-bundle` 构建通过；
+- Tauri Release `--no-bundle` 构建通过；
 - Tauri 原生浮球拖拽、双击切换、右键退出与进程回收烟测通过；
 - 浏览器模式的布局与交互 QA 通过。
 
-这些结果只说明 `0.1.5` 工程骨架在当前开发机可用，不代表正式发布条件已经满足。生产构建尚无 bundled Codex App Server sidecar；Windows 11、macOS 与 Linux 实机、安装器生命周期、平台代码签名和 macOS 公证均未完成验证。
+这些结果只说明 `0.1.6` 工程骨架在当前开发机可用，不代表正式发布条件已经满足。生产构建尚无 bundled Codex App Server sidecar；Windows 11、macOS 与 Linux 实机、安装器生命周期、平台代码签名和 macOS 公证均未完成验证。
 
 MVP 不使用 MySQL，也不启动本地 REST 服务。额度查询由 Rust 进程通过 `stdio` JSONL 与 Codex App Server 通信。
 

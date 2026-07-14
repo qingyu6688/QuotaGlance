@@ -19,7 +19,7 @@ describe("QuotaOrb", () => {
     expect(orb).toHaveStyle(
       "--quota-water-level: 96%",
     );
-    expect(orb).toHaveStyle("--quota-water-height: 61.44px");
+    expect(orb).toHaveStyle("--quota-water-height: 63.2px");
     expect(orb).toHaveTextContent("周额度");
     expect(orb).toHaveTextContent("96%");
     expect(orb).toHaveTextContent(/\d+ 月 \d+ 日重置/);
@@ -81,7 +81,7 @@ describe("QuotaOrb", () => {
     expect(onStartDragging).toHaveBeenCalledTimes(1);
   });
 
-  it("右键阻止 WebView 默认菜单并打开精简菜单", () => {
+  it("右键和键盘菜单键均可打开精简菜单", () => {
     const onOpenContextMenu = vi.fn();
     render(
       <QuotaOrb
@@ -95,7 +95,9 @@ describe("QuotaOrb", () => {
 
     const orb = screen.getByRole("button", { name: /右键打开菜单/ });
     expect(fireEvent.contextMenu(orb)).toBe(false);
-    expect(onOpenContextMenu).toHaveBeenCalledTimes(1);
+    fireEvent.keyDown(orb, { key: "ContextMenu" });
+    fireEvent.keyDown(orb, { key: "F10", shiftKey: true });
+    expect(onOpenContextMenu).toHaveBeenCalledTimes(3);
   });
 
   it("错误时不显示虚假百分比", () => {
